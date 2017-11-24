@@ -4,265 +4,242 @@ from random import randint
 import math
 from enum import Enum
 
-class Innovations:
-	listOfInnovations = []
+import genes
 
-	def createNewLinkInnovation(self, start, end):
-		newInnovation = Innovation(InnovationType.LINK, len(listOfInnovations), start, end, -1, NeuronType.LINK)
-		listOfInnovations.append(newInnovation)
+class CSpecies:
+	members = []
+	species = []
+	age = 0
 
-		return len(listOfInnovations) - 1;
+	# TODO: Find out correct values
+	youngBonusAgeThreshold = 5
+	youngFitnessBonus = 1.5
+	oldAgeThreshold = 15
+	oldAgePenalty = 0.5
 
-	def createNewNeuronInnovation(self, start, end, width, depth):
-		neurons = [neuron for neuron in listOfInnovations if neuron.innovationType == InnovationType.NEURON]
-		newNeuronID = len(neurons)
-		newInnovation = Innovation(NeuronType.NEURON, len(listOfInnovations), start, end, newNeuronID. NeuronType.HIDDEN)
-		listOfInnovations.append()
+	def adjustFitness():
+		total = 0.0
 
-	def checkInnovation(self, start, end, innovationType):
-		matched = [index for index, innovation in listOfInnovations if ((innovation.start == start) and (innovation.end == end) and (innovation.innovationType == innovationType))]
+		for member in members:
+			fitness = member.fitness
 
-		return matched
+			if (age <  youngBonusAgeThreshold):
+				fitness *= youngFitnessBonus
 
-	def getInnovation(self, innovationID):
-		return listOfInnovations[innovationID]
+			if (age > oldAgeThreshold):
+				fitness *= oldAgePenalty
 
-innovations = Innovations()
+			total += fitness
 
-class SLinkGene:
+			adjustedFitness = fitness/len(members)
 
-	def __init__(self, inNeuron, outNeuron, enabled, innovationID, weight, recurrent=False):
-		self.fromNeuron = inNeuron
-		self.toNeuron = outNeuron
+			member.adjustedFitness = adjustedFitness
 
-		self.weight = weight
+class NEAT:
+	genomes = []
+	generation = 0
+	currentGenomeID = 0
 
-		self.enabled = enabled
-
-		self.recurrent = recurrent
-
-		self.innovationID = innovationID
-
-	def __lt__(self, other):
-		return self.innovationID < other.innovationID
-
-class NeuronType(Enum):
-	INPUT = 0
-	HIDDEN = 1
-	BIAS = 2
-	OUTPUT = 3
-	LINK = 4
-
-class SNeuronGene:
+	numOfSweepers = 10
+	crossoverRate = 0.5
+	maxNumberOfNeuronsPermitted = 15
 	
-	numInputs = 0
-	numOutputs = 0
+	chanceToAddNode = 0.6
+	numOfTriesToFindOldLink = 10
+	
+	chanceToAddLink = 0.4
+	chanceToAddRecurrentLink = 0.1
+	numOfTriesToFindLoopedLink = 15
+	numOfTriesToAddLink = 20
 
-	neurons = []
-	links = []
+	mutationRate = 0.7
+	probabilityOfWeightReplaced = 0.3
+	maxWeightPerturbation = 0.8
 
-	def __init__(self, neuronType, ID, x, y, recurrent = False):
-		self.ID = ID
-		self.neuronType = neuronType
-		self.recurrent = recurrent
-		self.activationResponse = None
-		self.splitX = x
-		self.splitY = y
+	activationMutationRate = 0.7
+	maxActivationPerturbation = 0.8
 
-class InnovationType(Enum):
-	NEURON = 0
-	LINK = 1
+	def crossover(self, mum, dad):
+		best = None
 
-class SInnovation:
-	def __init__(self, innovationType, innovationID, start, end, neuronID, neuronType):
-		self.innovationType = innovationType
-		self.innovationID = innovationID
-		self.start = start
-		self.end = end
-		self.neuronID = neuronID
-		self.neuronType = neuronType
-
-class CGenome:
-
-	def __init__(self, ID, neurons, genes, inputs, outputs):
-		self.genomeID = ID
-		self.neurons = neurons
-		self.links = genes
-
-	def addLink(self, mutationRate, chanceOfLooped, innovation, 
-		triesToFindLoop, triesToAddLink):
-
-		if (random.random() > mutationRate):
-			return
-
-		neuron1 = -1
-		neuron2 = -1
-		recurrent = False
-
-		if (random.random() < chanceOfLooped):
-			loopFound = False
-			while(triesToFindLoop and not loopFound):
-				neuronPosition = randint(numInputs + 1, len(neurons) - 1)
-
-				loopNeuron = neurons[neuronPosition]
-				if (not loopNeuron.recurrent or 
-					loopNeuron.neuronType != NeuronType.BIAS or
-					loopNeuron.neuronType != NeuronType.INPUT):
-
-						neuron1 = neuron2 = loopNeuron.ID
-
-						recurrent = loopNeuron.recurrent = True
-
-						loopFound = True
+		if (mum.fitness == dad.fitness):
+			if (len(mum.links) == len(dad.links)):
+				best = random.choice([mum, dad])
+			else:
+				best = mum if len(mum.links) < len(dad.links) else dad
 		else:
-			loopFound = False
-			while(triesToAddLink and not loopFound):
-				neuron1 = neurons[randin(0, len(neurons - 1))]
-				neuron2 = neurons[randin(1, len(neurons - 1))]
-
-				if (neuron2.ID is 2):
-					continue
-
-				linkIsDuplicate = next(
-					(l for l in links 
-						if (l.fromNeuron != neuron1) and (l.toNeuron != neuron2) or (l.fromNeuron != neuron2) and (l.toNeuron != neuron1)), 
-					None)
-
-				if (not linkIsDuplicate
-					or neuron1.ID is neuron2.ID):
-
-						loopFound = True
-
-				else:
-					neuron1.ID = neuron2.ID = -1
+			best = mum if mum.fitness > dad.fitness else dad
 
 
-		if (neuron1.ID < 0 or neuron2.ID < 0):
-			return
+		mumIt = dadIt = 0
 
-		ID = innovations.checkInnovation(neuron1, neuron2, InnovationType.LINK)
-		
-		if (neuron1.splitY > neuron2.splitY):
-			recurrent = True
+		babyNeurons = []
+		babyGenes = []
 
-		if (ID < 0):
-			ID = innovation.createNewLinkInnovation(neuron1, neuron2)
+		neuronsList = []
 
-			randomClamped = random.random() - random.random()
-			newGene = SLinkGene(neuron1, neuron2, true, id, randomClamped, recurrent)
-			links.append(newGene)
+		selectedGene = None
+		while(mumIt < len(mum.links) and dadIt < len(dad.links)):
+			currentMum = mum.links[mumIt]
+			currentDad = dad.links[dadIt]
 
-		else:
-			newGene = SLinkGene(neuron1, neuron2, true, id, randomClamped, recurrent)
-			links.append(newGene)
+			if (mumIt == (len(mum.links) - 1) and (dadIt < len(dad.links))):
+				if (best == dad):
+					selectedGene = currentDad
+				dadIt += 1
 
+			elif (dadIt == (len(dad.links) - 1) and (mumIt < len(mum.links))):
+				if (best == mum):
+					selectedGene = currentMum
+				mumIt += 1
 
-	def addNeuron(self, mutationRate, innovations, triesToFindOldLink):
+			elif (currentMum.innovationID < currentDad.innovationID):
+				if (best == mum):
+					selectedGene = currentMum
 
-		if (random.random() > mutationRate):
-			return
+				mumIt += 1
 
-		done = False
-		chosenLink = 0
+			elif (currentDad.innovationID < currentMum.innovationID):
+				if (best == dad):
+					selectedGene = currentDad
 
-		sizeThreshold = self.numInputs + self.numOutputs + 5
+				dadIt += 1
 
-		if (len(links) < sizeThreshold):
+			elif (currentDad.innovationID == currentMum.innovationID):
+				selectedGene = random.choice([currentMum, currentDad])
 
-			loopFound = False
-			while (triesToFindOldLink and not loopFound):
-				# Genes might not be the same as links
-				chosenLink = links[randint(0, len(links) - 1 - math.sqrt(len(links)))]
+				mumIt += 1
+				dadIt += 1
 
-				fromNeuron = chosenLink.fromNeuron
-
-				if (chosenLink.enabled and
-					not chosenLink.recurrent and
-					neurons.index(fromNeuron).neuronType != NeuronType.BIAS):
-
-						done = loopFound = True
-
-			if (not done):
-				return
-
-		else:
-
-			while(not done):
-				chosenLink = links[randint(0, len(links) - 1)]
-				fromNeuron = chosenLink.fromNeuron
-
-				if (chosenLink.enabled and
-					not chosenLink.recurrent and
-					neurons.index(fromNeuron).neuronType is not NeuronType.BIAS):
-						done = True
-
-				chosenLink.enabled = True
-
-				originalWeight = chosenLink.weight
-				
-				fromNeuron = chosenLink.fromNeuron
-				toNeuron = chosenLink.toNeuron
-
-				newDepth = (neurons.index().splitY +
-					neurons.index(chosenLink.toNeuron).splitY) / 2
-
-				newWidth = (neurons.index(chosenLink.fromNeuron).splitX +
-					neurons.index(chosenLink.toNeuron).splitX) / 2
-
-				ID = innovations.checkInnovation(fromNeuron, toNeuron, InnovationType.NEURON)
-
-				if (ID >= 0):
-					neuronID = innovations.getInnovation(ID).neuronID
-
-					if (neurons.index(neuronID) >= 0):
-						ID = -1
+			
+			if (len(babyGenes) == 0):
+				babyGenes.append(selectedGene)
+			else:
+				if (babyGenes[-1].innovationID != selectedGene.innovationID):
+					babyGenes.append(selectedGene)
 
 
-				if (ID < 0):
-					newNeuronID = innovations.createNewNeuronInnovation(fromNeuron, toNeuron, newWidth, newDepth)
+			if len([neuron for neuron in babyNeurons if neuron.innovationID == selectedGene.fromNeuron.innovationID]) <= 0:
+				babyNeurons.append(selectedGene.fromNeuron)
 
-					neurons.append(SNeuronGene(NeuronType.HIDDEN,
-						newNeuronID,
-						newDepth,
-						newWidth))
+			if len([neuron for neuron in babyNeurons if neuron.innovationID == selectedGene.toNeuron.innovationID]) <= 0:
+				babyNeurons.append(selectedGene.toNeuron)
 
-					idLink1 = innovations.createNewLinkInnovation(fromNeuron, newNeuronID)
+			babyNeurons.sort(key=lambda x: x.innovationID, reverse=True)
 
-					link1 = SLinkGene(
-						fromNeuron,
-						newNeuronID,
-						true,
-						idLink1,
-						1.0)
+			self.currentGenomeID += 1
+			
+			return CGenome(self.currentGenomeID, babyNeurons, babyGenes, mum.inputs, mum.outputs)
+
+	def epoch(self, fitnessScores):
+		if (len(fitnessScores) != len(genomes)):
+			print("Mismatch of scores/genomes size.")
+
+		# TODO: ??
+		# resetAndKill()
+
+		for index, genome in self.genomes:
+			genome.fitness = fitnessScores[index]
+
+		# TODO: ??
+		# sortAndRecord()
+
+		# TODO: ??
+		# speciateAndCalculateSpawnLevels()
+
+		newPop = []
+		numSpawnedSoFar = 0
+
+		baby = None
+
+		for speciesMember in species:
+
+			if (numSpawnedSoFar < self.numOfSweepers):
+
+				numToSpawn = math.ceil(speciesMember.numToSpawn)
+				chosenBestYet = False
+
+				for i in numToSpawn:
+
+					if (not chosenBestYet):
+						baby = speciesMember.leader
+
+						chosenBestYet = True
+
+					else:
+						if (speciesMember.numOfMembers == 1):
+							baby = speciesMember.spawn()
+						else:
+							g1 = speciesMember.spawn()
+
+							if (random.random() < self.crossoverRate):
+								g2 = speciesMember.spawn()
+
+								numOfAttempts = 5
+
+								while((g1.genomeID == g2.genomeID) and numOfAttempts):
+									numOfAttempts -= 1
+
+									g2 = speciesMember.spawn()
+
+								if (g1.genomeID != g2.genomeID):
+									baby = self.crossover(g1, g2)
+								else:
+									baby = g1
+
+								currentGenomeID += 1
+
+								baby.genomeID = currentGenomeID
+
+								if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
+									baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
+
+								baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
+									self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
+
+								baby.mutateWeights(self.mutationRate, self.probabilityOfWeightReplaced,
+									self. maxWeightPerturbation)
+
+								baby.mutateActivationResponse(self.activationMutationRate, self.maxActivationPerturbation)
 
 
-					idLink2 = innovations.createNewLinkInnovation(newNeuronID, toNeuron)
-					link2 = SLinkGene(
-						newNeuronID,
-						toNeuron,
-						true,
-						idLink2,
-						originalWeight)
+							baby.links.sort(key=lambda x: x.innovationID, reverse=True)
 
-					self.links.push(link2)
+							newPop.append(baby)
 
-				else:
+							numSpawnedSoFar += 1
 
-					newNeuronID = innovations.getInnovation(ID).neuronID
+							if (numSpawnedSoFar == self.numOfSweepers):
+								numToSpawn = 0
 
-					idLink1 = innovations.checkInnovation(fromNeuron, newNeuronID, NeuronType.LINK)
-					idLink2 = innovations.checkInnovation(newNeuronID, toNeuron, NeuronType.LINK)
+		if (numSpawnedSoFar < self.numOfSweepers):
+			requiredNumberOfSpawns = numOfSweepers - numSpawnedSoFar
+
+			# for i in requiredNumberOfSpawns:
+				# newPop.append(TournamentSelection())
+
+		self.genomes = newPop
+
+		newPhenotypes = []
+
+		# for gen in self.genomes:
+			# depth = calculateNetDepth()
+			# phenotype = createPhenotype()
+
+			# newPhenotypes.append(phenotype)
 
 
-					if (idLink1 < 0 or idLink2 < 0):
-						return
+		generation += 1
 
-					link1 = SLinkGene(fromNeuron, newNeuronID, true, idLink1, 1.0)
-					link2 = SLinkGene(newNeuronID, toNeuron, true, idLink2, originalWeight)
+		return newPhenotypes
 
-					self.links.append(link1)
-					self.links.append(link2)
+class SLink:
+	
+	def __init__():
+		self.neuronIn = None
+		self.neuronOut = None
 
-					newNeuron = SNeuronGene(NeuronType.HIDDEN, newNeuronID, newDepth, newWidth)
+		self.weight = 0
 
-					self.neurons.append(newNeuron)
+		self.recurrent = False
+
