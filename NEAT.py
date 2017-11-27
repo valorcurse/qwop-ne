@@ -5,6 +5,7 @@ import math
 from enum import Enum
 
 import genes
+from genes import NeuronType
 
 class CSpecies:
 	members = []
@@ -232,14 +233,3 @@ class NEAT:
 		generation += 1
 
 		return newPhenotypes
-
-class SLink:
-	
-	def __init__():
-		self.neuronIn = None
-		self.neuronOut = None
-
-		self.weight = 0
-
-		self.recurrent = False
-
