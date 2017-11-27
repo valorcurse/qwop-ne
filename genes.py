@@ -27,8 +27,6 @@ class Innovations:
 	def getInnovation(self, innovationID):
 		return listOfInnovations[innovationID]
 
-innovations = Innovations()
-
 class SLinkGene:
 
 	def __init__(self, inNeuron, outNeuron, enabled, innovationID, weight, recurrent=False):
@@ -117,8 +115,59 @@ class CGenome:
 		self.neurons = neurons
 		self.links = genes
 
-	def addLink(self, mutationRate, chanceOfLooped, innovation, 
-		triesToFindLoop, triesToAddLink):
+		self.innovations = Innovations()
+
+	def calculateCompatibilityDistance(self, otherGenome):
+		g1 = g2 = 0
+		numExcess = 0
+		numMatched = 0
+		numDisjointed = 0
+
+		weightDifference = 0
+
+		while ((g1 < len(self.links)) or (g2 < len(otherGenome.links))):
+			if (g1 == len(self.links) - 1):
+				g2 += 1
+				numExcess += 1
+
+				continue
+
+			if (g2 == len(otherGenome.links)):
+				g1 += 1
+				numExcess += 1
+
+				continue
+
+			id1 = self.links[g1].ID
+			id2 = otherGenome.links[g2].ID
+
+			if (id1 == id2):
+				g1 += 1
+				g2 += 1
+				numMatched += 1
+
+				weightDifference += math.fabs(self.links[g1].weight - otherGenome.links[g2].weight)
+
+			if (id1 < id2):
+				numDisjointed += 1
+				g1 += 1
+
+			if (id1 > id2):
+				numDisjointed += 1
+				g2 += 1
+
+		longest = len(otherGenome.links) if len(otherGenome.links) > len(self.links) else len(self.links)
+
+		disjoint = 1.0
+		excess = 1.0
+		matched = 0.4
+
+		return ((excess * numExcess / longest) +
+			(disjoint * numDisjointed / longest) +
+			(matched * weightDifference / numMatched))
+
+
+	def addLink(self, mutationRate, chanceOfLooped, triesToFindLoop, triesToAddLink):
 
 		if (random.random() > mutationRate):
 			return
@@ -168,7 +217,7 @@ class CGenome:
 		if (neuron1.ID < 0 or neuron2.ID < 0):
 			return
 
-		ID = innovations.checkInnovation(neuron1, neuron2, InnovationType.LINK)
+		ID = self.innovations.checkInnovation(neuron1, neuron2, InnovationType.LINK)
 		
 		if (neuron1.splitY > neuron2.splitY):
 			recurrent = True
@@ -184,7 +233,7 @@ class CGenome:
 			newGene = SLinkGene(neuron1, neuron2, true, id, randomClamped, recurrent)
 			links.append(newGene)
 
-	def addNeuron(self, mutationRate, innovations, triesToFindOldLink):
+	def addNeuron(self, mutationRate, triesToFindOldLink):
 
 		if (random.random() > mutationRate):
 			return
@@ -236,24 +285,24 @@ class CGenome:
 				newWidth = (neurons.index(chosenLink.fromNeuron).splitX +
 					neurons.index(chosenLink.toNeuron).splitX) / 2
 
-				ID = innovations.checkInnovation(fromNeuron, toNeuron, InnovationType.NEURON)
+				ID = self.innovations.checkInnovation(fromNeuron, toNeuron, InnovationType.NEURON)
 
 				if (ID >= 0):
-					neuronID = innovations.getInnovation(ID).neuronID
+					neuronID = self.innovations.getInnovation(ID).neuronID
 
 					if (neurons.index(neuronID) >= 0):
 						ID = -1
 
 
 				if (ID < 0):
-					newNeuronID = innovations.createNewNeuronInnovation(fromNeuron, toNeuron, newWidth, newDepth)
+					newNeuronID = self.innovations.createNewNeuronInnovation(fromNeuron, toNeuron, newWidth, newDepth)
 
 					neurons.append(SNeuronGene(NeuronType.HIDDEN,
 						newNeuronID,
 						newDepth,
 						newWidth))
 
-					idLink1 = innovations.createNewLinkInnovation(fromNeuron, newNeuronID)
+					idLink1 = self.innovations.createNewLinkInnovation(fromNeuron, newNeuronID)
 
 					link1 = SLinkGene(
 						fromNeuron,
@@ -263,7 +312,7 @@ class CGenome:
 						1.0)
 
 
-					idLink2 = innovations.createNewLinkInnovation(newNeuronID, toNeuron)
+					idLink2 = self.innovations.createNewLinkInnovation(newNeuronID, toNeuron)
 					link2 = SLinkGene(
 						newNeuronID,
 						toNeuron,
@@ -275,10 +324,10 @@ class CGenome:
 
 				else:
 
-					newNeuronID = innovations.getInnovation(ID).neuronID
+					newNeuronID = self.innovations.getInnovation(ID).neuronID
 
-					idLink1 = innovations.checkInnovation(fromNeuron, newNeuronID, NeuronType.LINK)
-					idLink2 = innovations.checkInnovation(newNeuronID, toNeuron, NeuronType.LINK)
+					idLink1 = self.innovations.checkInnovation(fromNeuron, newNeuronID, NeuronType.LINK)
+					idLink2 = self.innovations.checkInnovation(newNeuronID, toNeuron, NeuronType.LINK)
 
 
 					if (idLink1 < 0 or idLink2 < 0):
@@ -325,19 +374,16 @@ class CGenome:
 				fromNeuron.linksIn.append(tmpLink)
 
 
-		# phenotype = CNeuralNetwork()
+		return CNeuralNetwork(neurons, depth)
 
-		# return phenotype
-
-
-def CNeuronNet:
+class CNeuronNet:
 
 	def __init__(self, neurons, depth):
 		self.neurons = neurons
 		self.depth = depth
 
 
-	def update(inputs):
+	def update(self, inputs):
 		outputs = []
 
 		neuronIndex = 0
