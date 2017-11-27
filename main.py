@@ -51,4 +51,4 @@ while True:
 
 				qwop.pressKey(Key(predicted).name)
 
-	neat.epoch(fitnessScores)
+	neat.phenotypes = neat.epoch(fitnessScores)

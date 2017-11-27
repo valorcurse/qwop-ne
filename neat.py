@@ -21,7 +21,7 @@ class CSpecies:
 	oldAgePenalty = 0.5
 
 	def __init__(self, speciesID):
-		self.ID = species
+		self.ID = speciesID
 
 	def adjustFitness():
 		total = 0.0
@@ -45,11 +45,12 @@ class NEAT:
 	genomes = []
 	phenotypes = []
 	species = []
+	speciesNumber = 0	
 
 	generation = 0
 	currentGenomeID = 0
 
-	numOfSweepers = 10
+	numOfSweepers = None
 	crossoverRate = 0.5
 	maxNumberOfNeuronsPermitted = 15
 	
@@ -69,9 +70,35 @@ class NEAT:
 	maxActivationPerturbation = 0.8
 
 	def __init__(self, numberOfGenomes, numOfInputs, numOfOutputs):
-		for i in range(numberOfGenomes):
-			self.genomes.append(CGenome(self.currentGenomeID, [], [], numOfInputs, numOfOutputs))
+		self.numOfSweepers = numberOfGenomes
+
+		newSpecies = CSpecies(self.speciesNumber)
+		for i in range(self.numOfSweepers):
+
+			inputs = []
+			links = []
+			for n in range(numOfInputs):
+				newInput = SNeuronGene(NeuronType.INPUT, n, 0, n)
+				
+				inputs.append()
+
+			outputs = []
+			for n in range(numOfOutputs):
+				innovations.createNewNeuronInnovation(-1, -1)
+				outputs.append(SNeuronGene(NeuronType.OUTPUT, n, 1, n))
+
+			for output in outputs:
+				links.append(SLinkGene(newInput, output, True, ))
+
+
+			newGenome = CGenome(self.currentGenomeID, [], [], numOfInputs, numOfOutputs)
+			self.genomes.append(newGenome)
+			newSpecies.members.append(newGenome)
+
 			self.currentGenomeID += 1
+
+		self.speciesNumber += 1
+		self.species.append(newSpecies)
 
 		self.phenotypes = self.epoch([0] * len(self.genomes))
 
@@ -154,6 +181,7 @@ class NEAT:
 		# TODO: ??
 		# resetAndKill()
 
+		print("Setting fitness scores")
 		for index, genome in enumerate(self.genomes):
 			genome.fitness = fitnessScores[index]
 
