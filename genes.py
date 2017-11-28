@@ -215,8 +215,9 @@ class CGenome:
 		else:
 			loopFound = False
 			while(triesToAddLink and not loopFound):
-				neuron1 = self.neurons[randint(0, len(self.neurons - 1))]
-				neuron2 = self.neurons[randint(1, len(self.neurons - 1))]
+				print("addLink neurons:", len(self.neurons))
+				neuron1 = self.neurons[randint(0, len(self.neurons) - 1)]
+				neuron2 = self.neurons[randint(1, len(self.neurons) - 1)]
 
 				if (neuron2.ID is 2):
 					continue
@@ -280,7 +281,7 @@ class CGenome:
 
 				if (chosenLink.enabled and
 					not chosenLink.recurrent and
-					neurons.index(fromNeuron).neuronType != NeuronType.BIAS):
+					self.neurons.index(fromNeuron).neuronType != NeuronType.BIAS):
 
 						done = loopFound = True
 
@@ -292,10 +293,10 @@ class CGenome:
 			while(not done):
 				chosenLink = self.links[randint(0, len(self.links) - 1)]
 				fromNeuron = chosenLink.fromNeuron
-
+				print(fromNeuron, chosenLink.fromNeuron)
 				if (chosenLink.enabled and
 					not chosenLink.recurrent and
-					neurons.index(fromNeuron).neuronType is not NeuronType.BIAS):
+					self.neurons.index(fromNeuron).neuronType is not NeuronType.BIAS):
 						done = True
 
 				chosenLink.enabled = True
@@ -305,25 +306,25 @@ class CGenome:
 				fromNeuron = chosenLink.fromNeuron
 				toNeuron = chosenLink.toNeuron
 
-				newDepth = (neurons.index().splitY +
-					neurons.index(chosenLink.toNeuron).splitY) / 2
+				newDepth = (self.neurons.index().splitY +
+					self.neurons.index(chosenLink.toNeuron).splitY) / 2
 
-				newWidth = (neurons.index(chosenLink.fromNeuron).splitX +
-					neurons.index(chosenLink.toNeuron).splitX) / 2
+				newWidth = (self.neurons.index(chosenLink.fromNeuron).splitX +
+					self.neurons.index(chosenLink.toNeuron).splitX) / 2
 
 				ID = innovations.checkInnovation(fromNeuron, toNeuron, InnovationType.NEURON)
 
 				if (ID >= 0):
 					neuronID = innovations.getInnovation(ID).neuronID
 
-					if (neurons.index(neuronID) >= 0):
+					if (self.neurons.index(neuronID) >= 0):
 						ID = -1
 
 
 				if (ID < 0):
 					newNeuronID = innovations.createNewNeuronInnovation(fromNeuron, toNeuron, newWidth, newDepth)
 
-					neurons.append(SNeuronGene(NeuronType.HIDDEN,
+					self.neurons.append(SNeuronGene(NeuronType.HIDDEN,
 						newNeuronID,
 						newDepth,
 						newWidth))
