@@ -4,15 +4,21 @@ from random import randint
 import math
 from enum import Enum
 
+from operator import attrgetter
+
 import genes
 from genes import NeuronType
 from genes import CGenome
+from genes import innovations
+
+global innovations
 
 class CSpecies:
 	leader = None
 	members = []
 	ID = None
 	age = None
+	numToSpawn = 12
 
 	# TODO: Find out correct values
 	youngBonusAgeThreshold = 5
@@ -22,6 +28,12 @@ class CSpecies:
 
 	def __init__(self, speciesID):
 		self.ID = speciesID
+
+	def leader(self):
+		return max(self.members, key=attrgetter('fitness'))
+
+	def spawn(self):
+		return random.choice(self.members)
 
 	def adjustFitness():
 		total = 0.0
@@ -73,25 +85,33 @@ class NEAT:
 		self.numOfSweepers = numberOfGenomes
 
 		newSpecies = CSpecies(self.speciesNumber)
+
+		inputs = []
+		for n in range(numOfInputs):
+			print("\rCreating inputs neurons (" + str(n+1) + "/" + str(numOfInputs) + ")", end='')
+			newInput = innovations.createNewNeuron(-1, -1, n, 0, NeuronType.INPUT)
+			inputs.append(newInput)
+
+		print("\n")
+		outputs = []
+		for n in range(numOfOutputs):
+			print("\rCreating output neurons (" + str(n+1) + "/" + str(numOfOutputs) + ")", end='')
+			newOutput = innovations.createNewNeuron(-1, -1, n, 0, NeuronType.OUTPUT)
+			outputs.append(newOutput)
+
+		print("\n")
+		links = []
+		i = 0
+		for output in outputs:
+			for neuron in inputs:
+				print("\rCreating links (" + str(i+1) + "/" + str(len(outputs) * len(inputs)) + ")", end='')
+				newLink = innovations.createNewLink(neuron, output, True, 0.0)
+				links.append(newLink)
+				i += 1
+
+		print("\n")
 		for i in range(self.numOfSweepers):
-
-			inputs = []
-			links = []
-			for n in range(numOfInputs):
-				newInput = SNeuronGene(NeuronType.INPUT, n, 0, n)
-				
-				inputs.append()
-
-			outputs = []
-			for n in range(numOfOutputs):
-				innovations.createNewNeuronInnovation(-1, -1)
-				outputs.append(SNeuronGene(NeuronType.OUTPUT, n, 1, n))
-
-			for output in outputs:
-				links.append(SLinkGene(newInput, output, True, ))
-
-
-			newGenome = CGenome(self.currentGenomeID, [], [], numOfInputs, numOfOutputs)
+			newGenome = CGenome(self.currentGenomeID, inputs.extend(outputs), links, numOfInputs, numOfOutputs)
 			self.genomes.append(newGenome)
 			newSpecies.members.append(newGenome)
 
@@ -190,10 +210,11 @@ class NEAT:
 
 		# TODO: ??
 		# speciateAndCalculateSpawnLevels()
-		for genome in self.genomes:
-			for species in self.species:
-				distance = genome.calculateCompatibilityDistance(species.members[0])
-				print("Distance: " + str(distance))
+
+		# for genome in self.genomes:
+		# 	for species in self.species:
+		# 		distance = genome.calculateCompatibilityDistance(species.members[0])
+		# 		print("Distance: " + str(distance))
 
 		newPop = []
 		numSpawnedSoFar = 0
@@ -207,15 +228,15 @@ class NEAT:
 				numToSpawn = math.ceil(speciesMember.numToSpawn)
 				chosenBestYet = False
 
-				for i in numToSpawn:
+				for i in range(numToSpawn):
 
 					if (not chosenBestYet):
-						baby = speciesMember.leader
+						baby = speciesMember.leader()
 
 						chosenBestYet = True
 
 					else:
-						if (speciesMember.numOfMembers == 1):
+						if (len(speciesMember.members) == 1):
 							baby = speciesMember.spawn()
 						else:
 							g1 = speciesMember.spawn()
@@ -235,9 +256,10 @@ class NEAT:
 								else:
 									baby = g1
 
-								currentGenomeID += 1
+								self.currentGenomeID += 1
 
-								baby.genomeID = currentGenomeID
+								print("genome id:", baby.genomeID)
+								baby.genomeID = self.currentGenomeID
 
 								if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
 									baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
@@ -245,10 +267,10 @@ class NEAT:
 								baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
 									self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
 
-								baby.mutateWeights(self.mutationRate, self.probabilityOfWeightReplaced,
-									self. maxWeightPerturbation)
+								# baby.mutateWeights(self.mutationRate, self.probabilityOfWeightReplaced,
+								# 	self. maxWeightPerturbation)
 
-								baby.mutateActivationResponse(self.activationMutationRate, self.maxActivationPerturbation)
+								# baby.mutateActivationResponse(self.activationMutationRate, self.maxActivationPerturbation)
 
 
 							baby.links.sort(key=lambda x: x.innovationID, reverse=True)
@@ -271,7 +293,9 @@ class NEAT:
 		newPhenotypes = []
 
 		for genome in self.genomes:
-			depth = calculateNetDepth(genome)
+			# depth = calculateNetDepth(genome)
+			print(genome.neurons)
+			depth = len(set(n.splitY for n in genome.neurons))
 			phenotype = genome.createPhenotype(depth)
 
 			newPhenotypes.append(phenotype)

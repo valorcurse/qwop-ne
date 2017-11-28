@@ -103,7 +103,11 @@ class QWOP:
 			return int(float(score.group(1))*100)
 
 	def runningTrack(self):
-		return self.image[75:-15, :]
+		# return self.image[75:-15, :]
+		# return self.image[75:-15, 100:-275]
+		grey = cv2.cvtColor(self.image[75:-15, 100:-275], cv2.COLOR_BGR2GRAY)
+		grey = cv2.resize(grey, (0,0), fx=0.15, fy=0.15)
+		return grey
 
 	def matchTemplate(self, image, template):
 		res = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)

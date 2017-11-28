@@ -5,27 +5,34 @@ from neat import NEAT
 import torch
 from torch.autograd import Variable
 
+import cv2
+
 qwop = QWOP()
 net = Net()
 net.cuda()
 
 qwop.grabImage()
+# cv2.imshow('running track', qwop.runningTrack())
+# cv2.waitKey()
 
+print("Creating NEAT object")
 neat = NEAT(12, qwop.runningTrack().size, 4)
 
 while True:
 
 	fitnessScores = []
 	
+	print("started")
+
 	for phenotype in neat.phenotypes:
 		running = True
 		gameStarted = False
 		
+		fitnessScore = 0
+
 		while (running):
 			qwop.grabImage()
 			
-			fitnessScore = 0
-
 			if (not qwop.isPlayable()):
 				if (not gameStarted):
 					gameStarted = True
@@ -51,4 +58,5 @@ while True:
 
 				qwop.pressKey(Key(predicted).name)
 
+	print("running epoch")
 	neat.phenotypes = neat.epoch(fitnessScores)
