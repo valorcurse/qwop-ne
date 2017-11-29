@@ -92,26 +92,28 @@ class NEAT:
 			newInput = innovations.createNewNeuron(-1, -1, n, 0, NeuronType.INPUT)
 			inputs.append(newInput)
 
-		print("\n")
+		print("")
 		outputs = []
 		for n in range(numOfOutputs):
 			print("\rCreating output neurons (" + str(n+1) + "/" + str(numOfOutputs) + ")", end='')
 			newOutput = innovations.createNewNeuron(-1, -1, n, 0, NeuronType.OUTPUT)
 			outputs.append(newOutput)
 
-		print("\n")
+		print("")
 		links = []
 		i = 0
-		for output in outputs:
-			for neuron in inputs:
+		for outputNeuron in outputs:
+			for inputNeuron in inputs:
 				print("\rCreating links (" + str(i+1) + "/" + str(len(outputs) * len(inputs)) + ")", end='')
-				newLink = innovations.createNewLink(neuron, output, True, 0.0)
+				# newLink = innovations.createNewLink(inputNeuron, outputNeuron, True, 0.0)
+				newLink = innovations.createNewLink(inputNeuron, outputNeuron, True, random.random())
 				links.append(newLink)
 				i += 1
 
-		print("\n")
+		print("")
+		inputs.extend(outputs)
 		for i in range(self.numOfSweepers):
-			newGenome = CGenome(self.currentGenomeID, inputs.extend(outputs), links, numOfInputs, numOfOutputs)
+			newGenome = CGenome(self.currentGenomeID, inputs, links, numOfInputs, numOfOutputs)
 			self.genomes.append(newGenome)
 			newSpecies.members.append(newGenome)
 
@@ -138,8 +140,6 @@ class NEAT:
 
 		babyNeurons = []
 		babyLinks = []
-
-		neuronsList = []
 
 		selectedLink = None
 		while(not (mumIt == len(mum.links)) and not (dadIt == len(dad.links))):
@@ -181,16 +181,14 @@ class NEAT:
 				if (babyLinks[-1].innovationID != selectedLink.innovationID):
 					babyLinks.append(selectedLink)
 
-			# foundNeurons = [n for n in babyNeurons if n.innovationID == selectedLink.fromNeuron.innovationID]
-			# print("find fromneuron:", )
-			if len([n for n in babyNeurons if n.innovationID == selectedLink.fromNeuron.innovationID]) <= 0:
+			if (selectedLink.fromNeuron not in babyNeurons):
 				babyNeurons.append(selectedLink.fromNeuron)
 
-			if len([n for n in babyNeurons if n.innovationID == selectedLink.toNeuron.innovationID]) <= 0:
+			if (selectedLink.toNeuron not in babyNeurons):
 				babyNeurons.append(selectedLink.toNeuron)
 
-		print("babyneurons:", len(babyNeurons))
-		babyNeurons.sort(key=lambda x: x.innovationID, reverse=True)
+		# print("babyneurons:", len(babyNeurons))
+		babyNeurons.sort(key=lambda x: x.ID, reverse=True)
 
 		self.currentGenomeID += 1
 			
@@ -248,20 +246,23 @@ class NEAT:
 
 								numOfAttempts = 5
 
+								# print("parents: ", g1, g2)
 								while((g1.genomeID == g2.genomeID) and numOfAttempts):
 									numOfAttempts -= 1
 
 									g2 = speciesMember.spawn()
 
 								if (g1.genomeID != g2.genomeID):
-									print("crossing over")
+									# print("crossing over")
+									# print("parents neuron number: ", len(g1.neurons), len(g2.neurons))
 									baby = self.crossover(g1, g2)
+									# print("baby neuron number: ", len(baby.neurons))
 								else:
 									baby = g1
 
 								self.currentGenomeID += 1
 
-								print("genome id:", baby.genomeID)
+								# print("genome id:", baby.genomeID)
 								baby.genomeID = self.currentGenomeID
 
 								if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
@@ -285,7 +286,7 @@ class NEAT:
 							if (numSpawnedSoFar == self.numOfSweepers):
 								numToSpawn = 0
 
-		print("newpop:", len(newPop))
+		# print("newpop:", len(newPop))
 		if (numSpawnedSoFar < self.numOfSweepers):
 			requiredNumberOfSpawns = self.numOfSweepers - numSpawnedSoFar
 
@@ -298,7 +299,7 @@ class NEAT:
 
 		for genome in self.genomes:
 			# depth = calculateNetDepth(genome)
-			print("neurons:", genome.neurons)
+			# print("neurons:", genome.neurons)
 			depth = len(set(n.splitY for n in genome.neurons))
 			phenotype = genome.createPhenotype(depth)
 

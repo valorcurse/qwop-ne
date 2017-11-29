@@ -118,7 +118,7 @@ class SNeuron:
 
 		self.neuronType = neuronType
 
-		self.neuronID = neuronID
+		self.ID = neuronID
 
 		self.activationResponse = activationResponse
 
@@ -136,8 +136,6 @@ class CGenome:
 		self.links = links
 		self.inputs = inputs
 		self.outputs = outputs
-
-		print("init: Links lengths", len(self.links))
 
 	def calculateCompatibilityDistance(self, otherGenome):
 		g1 = g2 = 0
@@ -215,7 +213,6 @@ class CGenome:
 		else:
 			loopFound = False
 			while(triesToAddLink and not loopFound):
-				print("addLink neurons:", len(self.neurons))
 				neuron1 = self.neurons[randint(0, len(self.neurons) - 1)]
 				neuron2 = self.neurons[randint(1, len(self.neurons) - 1)]
 
@@ -223,7 +220,7 @@ class CGenome:
 					continue
 
 				linkIsDuplicate = next(
-					(l for l in links 
+					(l for l in self.links 
 						if (l.fromNeuron != neuron1) and (l.toNeuron != neuron2) or (l.fromNeuron != neuron2) and (l.toNeuron != neuron1)), 
 					None)
 
@@ -273,8 +270,8 @@ class CGenome:
 			while (triesToFindOldLink and not loopFound):
 				# Genes might not be the same as links
 				maxRand = len(self.links) - 1 - math.sqrt(len(self.links))
-				print("max rand")
-				print(maxRand)
+				# print("max rand")
+				# print(maxRand)
 				chosenLink = self.links[randint(0, maxRand)]
 
 				fromNeuron = chosenLink.fromNeuron
@@ -293,10 +290,10 @@ class CGenome:
 			while(not done):
 				chosenLink = self.links[randint(0, len(self.links) - 1)]
 				fromNeuron = chosenLink.fromNeuron
-				print(fromNeuron, chosenLink.fromNeuron)
+				foundNeuron = self.neurons.index(fromNeuron)
 				if (chosenLink.enabled and
 					not chosenLink.recurrent and
-					self.neurons.index(fromNeuron).neuronType is not NeuronType.BIAS):
+					foundNeuron.neuronType is not NeuronType.BIAS):
 						done = True
 
 				chosenLink.enabled = True
@@ -373,12 +370,12 @@ class CGenome:
 	def createPhenotype(self, depth):
 		# deletePhenotype()
 
-		neurons = []
+		phenotypeNeurons = []
 
-		for neuron in neurons:
-			neurons.append(
+		for neuron in self.neurons:
+			phenotypeNeurons.append(
 				SNeuron(neuron.neuronType,
-					neuron.neuronID,
+					neuron.ID,
 					neuron.splitY,
 					neuron.splitX,
 					neuron.activationResponse))
@@ -388,38 +385,44 @@ class CGenome:
 			if (link.enabled):
 
 				fromNeuron = next((neuron 
-					for neuron in (neurons) if (neuron.ID == link.fromNeuron.ID)), None)
+					for neuron in (phenotypeNeurons) if (neuron.ID == link.fromNeuron.ID)), None)
 				toNeuron = next((neuron 
-					for neuron in (neurons) if (neuron.ID == link.toNeuron.ID)), None)
+					for neuron in (phenotypeNeurons) if (neuron.ID == link.toNeuron.ID)), None)
 
-				tmpLink = SLink(link.weight,
-					fromNeuron,
+				tmpLink = SLink(fromNeuron,
 					toNeuron,
+					link.weight,
 					link.recurrent)
 
 				fromNeuron.linksOut.append(tmpLink)
 				fromNeuron.linksIn.append(tmpLink)
 
 
-		return CNeuralNetwork(neurons, depth)
+		return CNeuralNet(phenotypeNeurons, depth)
 
-class CNeuronNet:
+class CNeuralNet:
 
 	def __init__(self, neurons, depth):
 		self.neurons = neurons
 		self.depth = depth
 
+	def sigmoid(self, x):
+  		return 1 / (1 + math.exp(-x))
 
 	def update(self, inputs):
 		outputs = []
 
 		neuronIndex = 0
+		# print("inputs", inputs.shape)
 
 		# Set input neurons values 
-		while(self.neurons[neuronIndex].neuronType == NeuronType.INPUT):
-			self.neurons[neuronIndex].output = inputs[neuronIndex]
+		inputNeurons = [neuron for neuron in self.neurons if neuron.neuronType == NeuronType.INPUT]
+		# while(self.neurons[neuronIndex].neuronType == NeuronType.INPUT):
+		for i, inputNeuron in enumerate(inputs):
+			# print("inputneuron", inputNeuron)
+			self.neurons[i].output = inputNeuron
 
-			neuronIndex += 1
+			# neuronIndex += 1
 
 		# Set bias
 		self.neurons[neuronIndex].output = 1
@@ -429,15 +432,18 @@ class CNeuronNet:
 		for currentNeuron in self.neurons:
 			neuronSum = 0.0
 
-			for link in len(currentNeuron.linksIn):
+			for link in currentNeuron.linksIn:
 				weight = link.weight
 
+				# print(link.neuronIn.output, weight)
 				neuronOutput = link.neuronIn.output
 
 				neuronSum += weight * neuronOutput
 
 			
-			currentNeuron.output = sigmoid(neuronSum, currentNeuron.activationResponse)
+			# currentNeuron.output = self.sigmoid(neuronSum, currentNeuron.activationResponse)
+			# print("output", neuronSum)
+			currentNeuron.output = self.sigmoid(neuronSum)
 
 			if (currentNeuron.neuronType == NeuronType.OUTPUT):
 				outputs.append(currentNeuron.output)

@@ -5,6 +5,7 @@ from neat import NEAT
 import torch
 from torch.autograd import Variable
 
+import numpy as np
 import cv2
 
 qwop = QWOP()
@@ -22,8 +23,6 @@ while True:
 
 	fitnessScores = []
 	
-	print("started")
-
 	for phenotype in neat.phenotypes:
 		running = True
 		gameStarted = False
@@ -54,7 +53,7 @@ while True:
 				print(qwop.runningTrack().shape)
 				fitnessScore = qwop.score()
 
-				predicted = math.max(phenotype.update(qwop.runningTrack()))
+				predicted = np.argmax(phenotype.update(qwop.runningTrack().flatten()), axis=0)
 
 				qwop.pressKey(Key(predicted).name)
 
