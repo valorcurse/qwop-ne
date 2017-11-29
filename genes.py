@@ -53,7 +53,10 @@ class Innovations:
 		return SNeuronGene(neuronType, self.currentNeuronID, x, y, ID, recurrent)
 
 	def checkInnovation(self, start, end, innovationType):
-		matched = [index for index, innovation in self.listOfInnovations if ((innovation.start == start) and (innovation.end == end) and (innovation.innovationType == innovationType))]
+		matched = [index for index, innovation in self.listOfInnovations if (
+			(innovation.start == start) and 
+			(innovation.end == end) and 
+			(innovation.innovationType == innovationType))]
 
 		return matched
 

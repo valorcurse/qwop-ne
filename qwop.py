@@ -76,7 +76,7 @@ class QWOP:
 		return (not self.isAtIntro() and not self.isAtGameLost())
 
 	def pressKey(self, key):
-		print("Pressing key " + key)
+		# print("Pressing key " + key)
 		actions = ActionChains(self.browser) 
 		actions.key_down(key)
 		actions.perform()

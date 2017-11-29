@@ -18,7 +18,7 @@ class CSpecies:
 	members = []
 	ID = None
 	age = None
-	numToSpawn = 12
+	numToSpawn = 5
 
 	# TODO: Find out correct values
 	youngBonusAgeThreshold = 5
@@ -66,7 +66,7 @@ class NEAT:
 	crossoverRate = 0.5
 	maxNumberOfNeuronsPermitted = 15
 	
-	chanceToAddNode = 0.05
+	chanceToAddNode = 0.5
 	numOfTriesToFindOldLink = 10
 	
 	chanceToAddLink = 0.03
@@ -246,23 +246,18 @@ class NEAT:
 
 								numOfAttempts = 5
 
-								# print("parents: ", g1, g2)
 								while((g1.genomeID == g2.genomeID) and numOfAttempts):
 									numOfAttempts -= 1
 
 									g2 = speciesMember.spawn()
 
 								if (g1.genomeID != g2.genomeID):
-									# print("crossing over")
-									# print("parents neuron number: ", len(g1.neurons), len(g2.neurons))
 									baby = self.crossover(g1, g2)
-									# print("baby neuron number: ", len(baby.neurons))
 								else:
 									baby = g1
 
 								self.currentGenomeID += 1
 
-								# print("genome id:", baby.genomeID)
 								baby.genomeID = self.currentGenomeID
 
 								if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
@@ -271,6 +266,9 @@ class NEAT:
 								baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
 									self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
 
+								for link in baby.links:
+									if (random.random() > self.mutationRate):
+										link.weight = random.random()
 								# baby.mutateWeights(self.mutationRate, self.probabilityOfWeightReplaced,
 								# 	self. maxWeightPerturbation)
 
