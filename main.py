@@ -3,6 +3,9 @@ from neuralNetwork import Net
 from neat import NEAT
 from genes import NeuronType
 
+from genes import innovations
+global innovations
+
 import torch
 from torch.autograd import Variable
 
@@ -86,3 +89,4 @@ while True:
 	print("Running epoch")
 	neat.phenotypes = neat.epoch(fitnessScores)
 	print("Generation: " + str(neat.generation))
+	print("Number of innovations: " + str(len(innovations.listOfInnovations)))

@@ -41,7 +41,7 @@ class CSpecies:
 		for member in members:
 			fitness = member.fitness
 
-			if (age <  youngBonusAgeThreshold):
+			if (age < youngBonusAgeThreshold):
 				fitness *= youngFitnessBonus
 
 			if (age > oldAgeThreshold):
@@ -63,13 +63,19 @@ class NEAT:
 	currentGenomeID = 0
 
 	numOfSweepers = None
-	crossoverRate = 0.5
-	maxNumberOfNeuronsPermitted = 15
+	crossoverRate = 1.0
+	# crossoverRate = 0.5
+	# maxNumberOfNeuronsPermitted = 15
+	maxNumberOfNeuronsPermitted = 10000
 	
-	chanceToAddNode = 0.5
+	speciesTolerance = 0.5
+
+	# chanceToAddNode = 0.5
+	chanceToAddNode = 1.0
 	numOfTriesToFindOldLink = 10
 	
-	chanceToAddLink = 0.03
+	# chanceToAddLink = 0.03
+	chanceToAddLink = 1.0
 	chanceToAddRecurrentLink = 0.01
 	numOfTriesToFindLoopedLink = 15
 	numOfTriesToAddLink = 20
@@ -93,6 +99,11 @@ class NEAT:
 			inputs.append(newInput)
 
 		print("")
+
+		print("Adding BIAS neuron")
+		biasInput = innovations.createNewNeuron(-1, -1, n, 0, NeuronType.BIAS)
+		inputs.append(biasInput)
+
 		outputs = []
 		for n in range(numOfOutputs):
 			print("\rCreating output neurons (" + str(n+1) + "/" + str(numOfOutputs) + ")", end='')
@@ -145,6 +156,8 @@ class NEAT:
 		while(not (mumIt == len(mum.links)) and not (dadIt == len(dad.links))):
 			currentMum = mum.links[mumIt]
 			currentDad = dad.links[dadIt]
+
+			# print(currentMum.innovationID, currentDad.innovationID)
 
 			if (mumIt == (len(mum.links) - 1) and (dadIt < len(dad.links))):
 				if (best == dad):
@@ -210,11 +223,22 @@ class NEAT:
 
 		# TODO: ??
 		# speciateAndCalculateSpawnLevels()
+		print("Number of species:" + str(len(self.species)))
+		for genome in self.genomes:
+			speciesMatched = False
+			for s in self.species:
+				distance = genome.calculateCompatibilityDistance(s.leader())
+				if (distance < self.speciesTolerance):
+					s.members.append(genome)
+					speciesMatched = True
 
-		# for genome in self.genomes:
-		# 	for species in self.species:
-		# 		distance = genome.calculateCompatibilityDistance(species.members[0])
-		# 		print("Distance: " + str(distance))
+				print("Distance: " + str(distance))
+
+			if (not speciesMatched):
+				self.speciesNumber += 1
+				newSpecies = CSpecies(self.speciesNumber)
+				newSpecies.members.append(genome)
+				self.species.append(newSpecies)
 
 		newPop = []
 		numSpawnedSoFar = 0
@@ -269,13 +293,16 @@ class NEAT:
 								for link in baby.links:
 									if (random.random() > self.mutationRate):
 										link.weight = random.random()
-								# baby.mutateWeights(self.mutationRate, self.probabilityOfWeightReplaced,
-								# 	self. maxWeightPerturbation)
+								
+								baby.mutateWeights(self.mutationRate, self.probabilityOfWeightReplaced,
+									self.maxWeightPerturbation)
 
 								# baby.mutateActivationResponse(self.activationMutationRate, self.maxActivationPerturbation)
 
 
-							baby.links.sort(key=lambda x: x.innovationID, reverse=True)
+							# baby.links.sort(key=lambda x: x.innovationID, reverse=True)
+							# print(baby.links)
+							baby.links.sort()
 
 							newPop.append(baby)
 
