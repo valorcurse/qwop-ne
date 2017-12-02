@@ -15,7 +15,7 @@ import time
 from random import randint
 
 print("Creating NEAT object")
-neat = NEAT(5, 5, 4)
+neat = NEAT(1, 5, 4)
 
 while True:
 

@@ -33,7 +33,6 @@ while True:
 	
 	for phenotype in neat.phenotypes:
 		qwop = QWOP()
-		os.system("wmctrl -r 'Firefox' -t 1")
 		running = True
 		gameStarted = False
 		
@@ -53,19 +52,8 @@ while True:
 					gameStarted = True
 					qwop.startGame()
 				else:
-					# fitnessScores.append()
 					running = False
 			else:
-				# data = Variable(
-				# 	torch.from_numpy(qwop.runningTrack()).type(torch.cuda.FloatTensor)
-				# 	).unsqueeze(0).permute(0, 3, 1, 2)
-				# outputs = net(data)
-				# _, predicted = torch.max(outputs.data, 1)
-				# print(predicted)
-				# print(predicted[0])
-				# print(Key(predicted[0]).name)
-				# qwop.runningTrack()
-				# print(qwop.score())
 				previousFitnessScore = fitnessScore
 				fitnessScore = qwop.score()
 

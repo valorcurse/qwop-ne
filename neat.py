@@ -63,7 +63,7 @@ class NEAT:
 	currentGenomeID = 0
 
 	numOfSweepers = None
-	crossoverRate = 1.0
+	crossoverRate = 0.7
 	# crossoverRate = 0.5
 	# maxNumberOfNeuronsPermitted = 15
 	maxNumberOfNeuronsPermitted = 10000
@@ -71,17 +71,17 @@ class NEAT:
 	speciesTolerance = 0.5
 
 	# chanceToAddNode = 0.5
-	chanceToAddNode = 1.0
+	chanceToAddNode = 0.03
 	numOfTriesToFindOldLink = 10
 	
-	# chanceToAddLink = 0.03
-	chanceToAddLink = 1.0
-	chanceToAddRecurrentLink = 0.01
+	chanceToAddLink = 0.05
+	# chanceToAddLink = 1.0
+	chanceToAddRecurrentLink = 0.00
 	numOfTriesToFindLoopedLink = 15
 	numOfTriesToAddLink = 20
 
 	mutationRate = 0.8
-	probabilityOfWeightReplaced = 0.1
+	probabilityOfWeightReplaced = 0.01
 	maxWeightPerturbation = 0.9
 
 	activationMutationRate = 0.7
@@ -96,31 +96,33 @@ class NEAT:
 		# print("Creating input neurons:")
 		for n in range(numOfInputs):
 			print("\rCreating inputs neurons (" + str(n+1) + "/" + str(numOfInputs) + ")", end='')
-			newInput = innovations.createNewNeuron(-1, -1, n, 0.0, NeuronType.INPUT)
+			newInput = innovations.createNewNeuron(None, None, n, 0.0, NeuronType.INPUT)
 			# print("neuron id:", newInput.ID)
 			inputs.append(newInput)
 
 		print("")
 
-		biasInput = innovations.createNewNeuron(-1, -1, n, 0.0, NeuronType.BIAS)
+		biasInput = innovations.createNewNeuron(None, None, n, 0.0, NeuronType.BIAS)
 		inputs.append(biasInput)
 
 		outputs = []
 		for n in range(numOfOutputs):
 			print("\rCreating output neurons (" + str(n+1) + "/" + str(numOfOutputs) + ")", end='')
-			newOutput = innovations.createNewNeuron(-1, -1, n, 1.0, NeuronType.OUTPUT)
+			newOutput = innovations.createNewNeuron(None, None, n, 1.0, NeuronType.OUTPUT)
 			outputs.append(newOutput)
 
 		print("")
 		links = []
-		i = 0
-		for outputNeuron in outputs:
-			for inputNeuron in inputs:
-				print("\rCreating links (" + str(i+1) + "/" + str(len(outputs) * len(inputs)) + ")", end='')
-				# newLink = innovations.createNewLink(inputNeuron, outputNeuron, True, 0.0)
-				newLink = innovations.createNewLink(inputNeuron, outputNeuron, True, 0.0)
-				links.append(newLink)
-				i += 1
+		# i = 0
+		# for outputNeuron in outputs:
+		# 	for inputNeuron in inputs:
+		# 		print("\rCreating links (" + str(i+1) + "/" + str(len(outputs) * len(inputs)) + ")", end='')
+		# 		# newLink = innovations.createNewLink(inputNeuron, outputNeuron, True, 0.0)
+		# 		if (inputNeuron.neuronType != NeuronType.BIAS):
+		# 			newLink = innovations.createNewLink(inputNeuron, outputNeuron, True, 0.0)
+		# 			links.append(newLink)
+				
+		# 		i += 1
 
 		print("")
 		inputs.extend(outputs)
@@ -142,6 +144,12 @@ class NEAT:
 
 	def crossover(self, mum, dad):
 		best = None
+
+		if (len(mum.links) < 1 or len(dad.links) < 1):
+			print("mom or dad have no genes")
+			best = random.choice([mum, dad])
+
+			return CGenome(self.currentGenomeID, best.neurons, best.links, best.inputs, best.outputs)
 
 		if (mum.fitness == dad.fitness):
 			if (len(mum.links) == len(dad.links)):
@@ -237,6 +245,7 @@ class NEAT:
 			speciesMatched = False
 			for s in self.species:
 				distance = genome.calculateCompatibilityDistance(s.leader())
+				print("distance: ", distance)
 				if (distance < self.speciesTolerance):
 					s.members.append(genome)
 					speciesMatched = True
@@ -284,8 +293,10 @@ class NEAT:
 
 									g2 = speciesMember.spawn()
 
-								if (g1.genomeID != g2.genomeID):
-									baby = self.crossover(g1, g2)
+								# print("parents:", len(g1.links), len(g2.links))
+								if (g1.genomeID != g2.genomeID or 
+									len(g1.links) < 1 or len(g2.links)) < 1:
+										baby = self.crossover(g1, g2)
 								else:
 									baby = g1
 
@@ -293,13 +304,13 @@ class NEAT:
 
 								baby.genomeID = self.currentGenomeID
 
-								# for i in range(1000):
 								if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
 									baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
 
-								# for i in range(1000):
-								# baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
-									# self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
+								# print("baby neurons: ", len(baby.neurons))
+								# print("baby links: ", len(baby.links))
+								baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
+									self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
 								
 								baby.mutateWeights(self.mutationRate, self.probabilityOfWeightReplaced,
 									self.maxWeightPerturbation)
@@ -329,6 +340,7 @@ class NEAT:
 		for genome in self.genomes:
 			# depth = calculateNetDepth(genome)
 			# print("neurons:", genome.neurons)
+
 			depth = len(set(n.splitY for n in genome.neurons))
 			phenotype = genome.createPhenotype(depth)
 
