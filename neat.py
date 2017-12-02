@@ -93,21 +93,22 @@ class NEAT:
 		newSpecies = CSpecies(self.speciesNumber)
 
 		inputs = []
+		# print("Creating input neurons:")
 		for n in range(numOfInputs):
 			print("\rCreating inputs neurons (" + str(n+1) + "/" + str(numOfInputs) + ")", end='')
-			newInput = innovations.createNewNeuron(-1, -1, n, 0, NeuronType.INPUT)
+			newInput = innovations.createNewNeuron(-1, -1, n, 0.0, NeuronType.INPUT)
+			# print("neuron id:", newInput.ID)
 			inputs.append(newInput)
 
 		print("")
 
-		print("Adding BIAS neuron")
-		biasInput = innovations.createNewNeuron(-1, -1, n, 0, NeuronType.BIAS)
+		biasInput = innovations.createNewNeuron(-1, -1, n, 0.0, NeuronType.BIAS)
 		inputs.append(biasInput)
 
 		outputs = []
 		for n in range(numOfOutputs):
 			print("\rCreating output neurons (" + str(n+1) + "/" + str(numOfOutputs) + ")", end='')
-			newOutput = innovations.createNewNeuron(-1, -1, n, 0, NeuronType.OUTPUT)
+			newOutput = innovations.createNewNeuron(-1, -1, n, 1.0, NeuronType.OUTPUT)
 			outputs.append(newOutput)
 
 		print("")
@@ -117,12 +118,16 @@ class NEAT:
 			for inputNeuron in inputs:
 				print("\rCreating links (" + str(i+1) + "/" + str(len(outputs) * len(inputs)) + ")", end='')
 				# newLink = innovations.createNewLink(inputNeuron, outputNeuron, True, 0.0)
-				newLink = innovations.createNewLink(inputNeuron, outputNeuron, True, random.random())
+				newLink = innovations.createNewLink(inputNeuron, outputNeuron, True, 0.0)
 				links.append(newLink)
 				i += 1
 
 		print("")
 		inputs.extend(outputs)
+		# print("created neurons:")
+		# for neuron in inputs:
+			# print("neuron ID:", neuron.ID)
+
 		for i in range(self.numOfSweepers):
 			newGenome = CGenome(self.currentGenomeID, inputs, links, numOfInputs, numOfOutputs)
 			self.genomes.append(newGenome)
@@ -201,7 +206,11 @@ class NEAT:
 				babyNeurons.append(selectedLink.toNeuron)
 
 		# print("babyneurons:", len(babyNeurons))
-		babyNeurons.sort(key=lambda x: x.ID, reverse=True)
+		babyNeurons.sort(key=lambda x: x.splitY, reverse=False)
+
+		# print("baby neurons:", len(babyNeurons))
+		# for neuron in babyNeurons:
+			# print("neuron:", neuron.ID, neuron.neuronType, neuron.splitY)
 
 		self.currentGenomeID += 1
 			
@@ -232,7 +241,7 @@ class NEAT:
 					s.members.append(genome)
 					speciesMatched = True
 
-				print("Distance: " + str(distance))
+				# print("Distance: " + str(distance))
 
 			if (not speciesMatched):
 				self.speciesNumber += 1
@@ -280,28 +289,23 @@ class NEAT:
 								else:
 									baby = g1
 
-								self.currentGenomeID += 1
+								self.currentGenomeID += 1.0
 
 								baby.genomeID = self.currentGenomeID
 
+								# for i in range(1000):
 								if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
 									baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
 
-								baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
-									self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
-
-								for link in baby.links:
-									if (random.random() > self.mutationRate):
-										link.weight = random.random()
+								# for i in range(1000):
+								# baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
+									# self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
 								
 								baby.mutateWeights(self.mutationRate, self.probabilityOfWeightReplaced,
 									self.maxWeightPerturbation)
 
 								# baby.mutateActivationResponse(self.activationMutationRate, self.maxActivationPerturbation)
 
-
-							# baby.links.sort(key=lambda x: x.innovationID, reverse=True)
-							# print(baby.links)
 							baby.links.sort()
 
 							newPop.append(baby)

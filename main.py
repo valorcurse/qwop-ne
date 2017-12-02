@@ -13,6 +13,8 @@ import numpy as np
 import cv2
 import time
 
+import os
+
 qwop = QWOP()
 # net = Net()
 # net.cuda()
@@ -22,7 +24,7 @@ qwop.grabImage()
 # cv2.waitKey()
 
 print("Creating NEAT object")
-neat = NEAT(12, qwop.runningTrack().size, 4)
+neat = NEAT(5, qwop.runningTrack().size, 4)
 qwop.stop()
 
 while True:
@@ -31,6 +33,7 @@ while True:
 	
 	for phenotype in neat.phenotypes:
 		qwop = QWOP()
+		os.system("wmctrl -r 'Firefox' -t 1")
 		running = True
 		gameStarted = False
 		
@@ -70,10 +73,10 @@ while True:
 					if startTime == None:
 						startTime = time.time()
 					else:
-						print("\rTime standing still: " + str(time.time() - startTime), end='')
+						# print("\rTime standing still: " + str(time.time() - startTime), end='')
 						if (time.time() - startTime) > 3.0:
-							print("")
-							print("Stopping game.")
+							# print("")
+							# print("Stopping game.")
 							running = False
 				else:
 					startTime = None
@@ -82,6 +85,7 @@ while True:
 
 				qwop.pressKey(Key(predicted).name)
 
+		print("")
 		print("Fitness score: " + str(fitnessScore))
 		fitnessScores.append(fitnessScore)
 		qwop.stop()

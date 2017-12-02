@@ -53,11 +53,11 @@ class Innovations:
 		return SNeuronGene(neuronType, self.currentNeuronID, x, y, ID, recurrent)
 
 	def checkInnovation(self, start, end, innovationType):
-		matched = next((index for index, innovation in enumerate(self.listOfInnovations) if (
+		matched = next((innovation for innovation in self.listOfInnovations if (
 			(innovation.start == start) and 
 			(innovation.end == end) and 
 			(innovation.innovationType == innovationType))), None)
-
+		# print(matched)
 		return -1 if (matched == None) else matched.innovationID
 
 	def getInnovation(self, innovationID):
@@ -116,8 +116,8 @@ class SNeuron:
 		self.linksIn = []
 		self.linksOut = []
 
-		self.sumActivation = 0
-		self.output = 0
+		self.sumActivation = 0.0
+		self.output = 0.0
 
 		self.neuronType = neuronType
 
@@ -242,11 +242,11 @@ class CGenome:
 		if (neuron1.splitY > neuron2.splitY):
 			recurrent = True
 
+		randomClamped = random.random() - random.random()
 		if (ID < 0):
-			print("Adding new link")
+			# print("Adding new link")
 			ID = innovations.createNewLinkInnovation(neuron1, neuron2)
 
-			randomClamped = random.random() - random.random()
 			newGene = SLinkGene(neuron1, neuron2, True, ID, randomClamped, recurrent)
 			self.links.append(newGene)
 
@@ -311,8 +311,10 @@ class CGenome:
 
 
 				if (ID < 0):
-					print("Adding new neuron: ")
+					# print("Adding new neuron.")
+					# print("depth: ", newDepth)
 					newNeuron = innovations.createNewNeuron(fromNeuron, toNeuron, newWidth, newDepth, NeuronType.HIDDEN)
+					# print(newNeuron)
 					self.neurons.append(newNeuron)
 
 					link1 = innovations.createNewLink(fromNeuron, newNeuron, True, 1.0)
@@ -339,12 +341,14 @@ class CGenome:
 					self.links.append(link1)
 					self.links.append(link2)
 
-					newNeuron = SNeuronGene(NeuronType.HIDDEN, newNeuron, newDepth, newWidth)
+					newNeuron = SNeuronGene(NeuronType.HIDDEN, newNeuron, newWidth, newDepth)
 
 					self.neurons.append(newNeuron)
 
+		self.neurons.sort(key=lambda x: x.splitY, reverse=False)
+
 	def mutateWeights(self, mutationRate, replacementProbability, maxWeightPerturbation):
-		print("Mutating weights")
+		# print("Mutating weights")
 
 		for link in self.links:
 			if (random.random() < replacementProbability):
@@ -359,7 +363,9 @@ class CGenome:
 
 		phenotypeNeurons = []
 
+		# print("creating phenotype:")
 		for neuron in self.neurons:
+			# print("neuron id:", neuron.ID)
 			phenotypeNeurons.append(
 				SNeuron(neuron.neuronType,
 					neuron.ID,
@@ -382,7 +388,7 @@ class CGenome:
 					link.recurrent)
 
 				fromNeuron.linksOut.append(tmpLink)
-				fromNeuron.linksIn.append(tmpLink)
+				toNeuron.linksIn.append(tmpLink)
 
 
 		return CNeuralNet(phenotypeNeurons, depth)
@@ -392,6 +398,11 @@ class CNeuralNet:
 	def __init__(self, neurons, depth):
 		self.neurons = neurons
 		self.depth = depth
+		print("--------------------------------------------------------------------------------")
+		print("neural network neurons:", len(self.neurons))
+		for neuron in self.neurons:
+			print(neuron.neuronType, neuron.ID)
+			print("\tlinksin:", [link.neuronIn.ID for link in neuron.linksIn])
 
 	def sigmoid(self, x):
   		return 1 / (1 + math.exp(-x))
@@ -400,33 +411,41 @@ class CNeuralNet:
 		outputs = []
 
 		neuronIndex = 0
-		# print("inputs", inputs.shape)
+		# print("inputs", inputs)
 
 		# Set input neurons values 
 		inputNeurons = [neuron for neuron in self.neurons if neuron.neuronType == NeuronType.INPUT]
-		for i, inputNeuron in enumerate(inputs):
-			self.neurons[i].output = inputNeuron
+		for inputNeuron in inputs:
+			# print("inputNeuron:", inputNeuron)
+			self.neurons[neuronIndex].output = inputNeuron
+			neuronIndex += 1
 
 		# Set bias
 		self.neurons[neuronIndex].output = 1
 
-		neuronIndex += 1
+		# neuronIndex += 1
 
+		# neuronIndex = 0
+		# print("--------------------------------------------------------------------------------")
 		for currentNeuron in self.neurons:
 			neuronSum = 0.0
 
+			# print("neuron:", currentNeuron.ID, currentNeuron.neuronType, currentNeuron.splitY)
 			for link in currentNeuron.linksIn:
 				weight = link.weight
 
 				# print(link.neuronIn.output, weight)
+				# print("neuronin: ", link.neuronIn, link.neuronIn.output)
 				neuronOutput = link.neuronIn.output
-
+				# print("neuronOutput:", neuronOutput)
+				# print("neuronSum=", weight, neuronOutput, (weight * neuronOutput))
 				neuronSum += weight * neuronOutput
 
 			
 			# currentNeuron.output = self.sigmoid(neuronSum, currentNeuron.activationResponse)
-			# print("output", neuronSum)
 			currentNeuron.output = self.sigmoid(neuronSum)
+			# print("output", currentNeuron.output)
+			# print("")
 
 			if (currentNeuron.neuronType == NeuronType.OUTPUT):
 				outputs.append(currentNeuron.output)

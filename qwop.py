@@ -100,7 +100,7 @@ class QWOP:
 		with PyTessBaseAPI() as tesseract:
 			tesseract.SetImage(Image.fromarray(scoreImage))
 			score = re.search('((-)?\d+(\.\d+)?).*', tesseract.GetUTF8Text())
-			print(tesseract.GetUTF8Text())
+			print(tesseract.GetUTF8Text(), score)
 			return int(float(score.group(1))*100)
 
 	def runningTrack(self):
