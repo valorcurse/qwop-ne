@@ -17,7 +17,7 @@ class CSpecies:
 	leader = None
 	members = []
 	ID = None
-	age = None
+	age = 0
 	numToSpawn = 5
 
 	# TODO: Find out correct values
@@ -35,21 +35,21 @@ class CSpecies:
 	def spawn(self):
 		return random.choice(self.members)
 
-	def adjustFitness():
+	def adjustFitnesses(self):
 		total = 0.0
 
-		for member in members:
+		for member in self.members:
 			fitness = member.fitness
 
-			if (age < youngBonusAgeThreshold):
-				fitness *= youngFitnessBonus
+			if (self.age < self.youngBonusAgeThreshold):
+				fitness *= self.youngFitnessBonus
 
-			if (age > oldAgeThreshold):
-				fitness *= oldAgePenalty
+			if (self.age > self.oldAgeThreshold):
+				fitness *= self.oldAgePenalty
 
 			total += fitness
 
-			adjustedFitness = fitness/len(members)
+			adjustedFitness = fitness/len(self.members)
 
 			member.adjustedFitness = adjustedFitness
 
@@ -68,7 +68,7 @@ class NEAT:
 	# maxNumberOfNeuronsPermitted = 15
 	maxNumberOfNeuronsPermitted = 10000
 	
-	speciesTolerance = 0.5
+	newSpeciesTolerance = 0.5
 
 	# chanceToAddNode = 0.5
 	chanceToAddNode = 0.03
@@ -136,6 +136,9 @@ class NEAT:
 			newSpecies.members.append(newGenome)
 
 			self.currentGenomeID += 1
+
+		for g in self.genomes:
+			print("genome: ", g.genomeID)
 
 		self.speciesNumber += 1
 		self.species.append(newSpecies)
@@ -233,6 +236,8 @@ class NEAT:
 
 		print("Setting fitness scores")
 		for index, genome in enumerate(self.genomes):
+			print("id: ", genome.genomeID)
+			print("fitenss score:", fitnessScores[index])
 			genome.fitness = fitnessScores[index]
 
 		# TODO: ??
@@ -240,13 +245,16 @@ class NEAT:
 
 		# TODO: ??
 		# speciateAndCalculateSpawnLevels()
-		print("Number of species:" + str(len(self.species)))
+
+		# self.species = []
+
 		for genome in self.genomes:
 			speciesMatched = False
 			for s in self.species:
 				distance = genome.calculateCompatibilityDistance(s.leader())
 				print("distance: ", distance)
-				if (distance < self.speciesTolerance):
+				if (distance < self.newSpeciesTolerance):
+					print("Adding member to species " + str(s.ID))
 					s.members.append(genome)
 					speciesMatched = True
 
@@ -255,8 +263,29 @@ class NEAT:
 			if (not speciesMatched):
 				self.speciesNumber += 1
 				newSpecies = CSpecies(self.speciesNumber)
+				print("Creating new species " + str(newSpecies.ID))
 				newSpecies.members.append(genome)
 				self.species.append(newSpecies)
+
+		print("Number of species: " + str(len(self.species)))
+		for s in self.species:
+			s.age += 1
+			s.adjustFitnesses()
+
+
+		for s in self.species:
+			print("adjust fitnesses: ", [m.adjustedFitness for m in s.members])
+			avgFitness = sum([m.adjustedFitness for m in s.members])/len(s.members)
+			
+			print("avg fitness:", avgFitness)
+			if (avgFitness == 0.0):
+				continue
+
+			for member in s.members:
+				print("add to spawn: ", member.adjustedFitness, avgFitness, member.adjustedFitness/avgFitness)
+				s.numToSpawn += member.adjustedFitness/avgFitness
+
+			print("num to spawn: ", s.numToSpawn)
 
 		newPop = []
 		numSpawnedSoFar = 0

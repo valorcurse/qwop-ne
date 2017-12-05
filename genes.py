@@ -48,7 +48,7 @@ class Innovations:
 
 		return len(self.listOfInnovations) - 1;
 
-	def createNewNeuron(self, fromNeuron, toNeuron, x, y, neuronType, recurrent = False):
+	def createNewNeuron(self, fromNeuron, toNeuron, x, y, neuronType, recurrent=False):
 		ID = self.createNewNeuronInnovation(fromNeuron, toNeuron)
 		self.currentNeuronID += 1
 		return SNeuronGene(neuronType, self.currentNeuronID, x, y, ID, recurrent)
@@ -147,7 +147,7 @@ class CGenome:
 		numMatched = 1.0
 		numDisjointed = 1.0
 
-		weightDifference = 0
+		weightDifference = 0.0
 
 		if (len(self.links) < 1 or len(otherGenome.links) < 1):
 			return 0
@@ -186,6 +186,9 @@ class CGenome:
 
 		longest = len(otherGenome.links) if len(otherGenome.links) > len(self.links) else len(self.links)
 		
+		# print("links: ", len(self.links), len(otherGenome.links))
+		# print("longest: " + str(longest))
+
 		disjoint = 1.0
 		excess = 1.0
 		matched = 0.4
@@ -369,7 +372,7 @@ class CGenome:
 
 	def mutateWeights(self, mutationRate, replacementProbability, maxWeightPerturbation):
 		if (random.random() < mutationRate):
-			print("Mutating weights")
+			# print("Mutating weights")
 			for link in self.links:
 				if (random.random() < replacementProbability):
 					print(link.weight)

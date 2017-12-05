@@ -15,7 +15,7 @@ import time
 from random import randint
 
 print("Creating NEAT object")
-neat = NEAT(1, 5, 4)
+neat = NEAT(5, 5, 4)
 
 while True:
 
@@ -32,7 +32,7 @@ while True:
 			str(len([neuron for neuron in phenotype.neurons if neuron.neuronType == NeuronType.HIDDEN])))
 
 		phenotype.update([randint(1, 10)]*5)
-		fitnessScores.append(0)
+		fitnessScores.append(randint(1, 100))
 
 	print("Running epoch")
 	neat.phenotypes = neat.epoch(fitnessScores)
