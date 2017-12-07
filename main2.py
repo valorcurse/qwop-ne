@@ -15,10 +15,11 @@ import time
 from random import randint
 
 print("Creating NEAT object")
-neat = NEAT(5, 5, 4)
+neat = NEAT(50, 5, 4)
 
 while True:
-
+	print("----------------------------------------")
+	
 	fitnessScores = []
 	
 	for phenotype in neat.phenotypes:
@@ -35,8 +36,11 @@ while True:
 		fitnessScores.append(randint(1, 100))
 
 	print("Running epoch")
+	print("Fitness scores: ", fitnessScores)
 	neat.phenotypes = neat.epoch(fitnessScores)
 	print("Generation: " + str(neat.generation))
 	print("Number of innovations: " + str(len(innovations.listOfInnovations)))
+	print("Number of phenotypes: " + str(len(neat.phenotypes)))
+
 
 	time.sleep(1)

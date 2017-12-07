@@ -135,7 +135,7 @@ class CGenome:
 	fitness = 0
 
 	def __init__(self, ID, neurons, links, inputs, outputs):
-		self.genomeID = ID
+		self.ID = ID
 		self.neurons = neurons
 		self.links = links
 		self.inputs = inputs
@@ -143,14 +143,15 @@ class CGenome:
 
 	def calculateCompatibilityDistance(self, otherGenome):
 		g1 = g2 = 0
-		numExcess = 1.0
+		numExcess = 0.0
 		numMatched = 1.0
-		numDisjointed = 1.0
+		numDisjointed = 0.0
 
 		weightDifference = 0.0
 
-		if (len(self.links) < 1 or len(otherGenome.links) < 1):
-			return 0
+		# if (len(self.links) < 1 or len(otherGenome.links) < 1):
+			# return 0
+
 
 		while ((g1 < len(self.links) - 1) or (g2 < len(otherGenome.links) - 1)):
 			
@@ -184,7 +185,9 @@ class CGenome:
 				numDisjointed += 1
 				g2 += 1
 
-		longest = len(otherGenome.links) if len(otherGenome.links) > len(self.links) else len(self.links)
+		# longest = len(otherGenome.links) if len(otherGenome.links) > len(self.links) else len(self.links)
+		longest = max(len(otherGenome.links), len(self.links))
+		longest = 1.0 if longest < 20 else longest
 		
 		# print("links: ", len(self.links), len(otherGenome.links))
 		# print("longest: " + str(longest))
@@ -192,6 +195,10 @@ class CGenome:
 		disjoint = 1.0
 		excess = 1.0
 		matched = 0.4
+
+		# print([[l.fromNeuron.ID, l.toNeuron.ID] for l in self.links])
+		# print([[l.fromNeuron.ID, l.toNeuron.ID] for l in otherGenome.links])
+		# print("Disjoint:", numDisjointed, "Excess:", numExcess, "Weight diff:", weightDifference)
 
 		return ((excess * numExcess / longest) +
 			(disjoint * numDisjointed / longest) +
@@ -300,7 +307,6 @@ class CGenome:
 						done = loopFound = True
 
 				triesToFindOldLink -= 1
-				print(triesToFindOldLink)
 
 			if (not done):
 				return
@@ -311,7 +317,6 @@ class CGenome:
 				chosenLink = self.links[randint(0, len(self.links) - 1)]
 				fromNeuron = chosenLink.fromNeuron
 
-				print(chosenLink.enabled, chosenLink.recurrent, fromNeuron.neuronType)
 				if (chosenLink.enabled and (not chosenLink.recurrent) and (fromNeuron.neuronType != NeuronType.BIAS)):
 					done = True
 
@@ -323,7 +328,6 @@ class CGenome:
 		toNeuron = chosenLink.toNeuron
 
 		newDepth = (fromNeuron.splitY + toNeuron.splitY) / 2
-		print("newDepth:", newDepth)
 		newWidth = (fromNeuron.splitX +	toNeuron.splitX) / 2
 
 		ID = innovations.checkInnovation(fromNeuron, toNeuron, InnovationType.NEURON)
@@ -353,8 +357,6 @@ class CGenome:
 			idLink1 = innovations.checkInnovation(fromNeuron, newNeuron, NeuronType.LINK)
 			idLink2 = innovations.checkInnovation(newNeuron, toNeuron, NeuronType.LINK)
 
-			print("idlinks:", idLink1, idLink2)
-
 			if (idLink1 < 0 or idLink2 < 0):
 				return
 
@@ -375,7 +377,6 @@ class CGenome:
 			# print("Mutating weights")
 			for link in self.links:
 				if (random.random() < replacementProbability):
-					print(link.weight)
 					link.weight = random.random()
 					return 
 
