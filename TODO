@@ -1,0 +1,7 @@
+neat.py 289:
+Traceback (most recent call last):
+  File "main.py", line 82, in <module>
+    neat.phenotypes = neat.epoch(fitnessScores)
+  File "/opt/Repositories/qwop-ne/neat.py", line 289, in epoch
+    baby.ID = self.currentGenomeID
+AttributeError: 'NoneType' object has no attribute 'ID'
