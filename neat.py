@@ -55,11 +55,14 @@ class CSpecies:
 			if (self.age > self.oldAgeThreshold):
 				fitness *= self.oldAgePenalty
 
-			total += fitness
 
 			adjustedFitness = fitness/len(self.members)
+			
+			total += adjustedFitness
 
 			member.adjustedFitness = adjustedFitness
+
+		self.avgFitness = total/len(self.members)
 
 class NEAT:
 	genomes = []
@@ -68,7 +71,7 @@ class NEAT:
 	speciesNumber = 0	
 
 	generation = 0
-	numGensAllowNoImprovement = 5
+	numGensAllowNoImprovement = 20
 
 	currentGenomeID = 0
 
@@ -80,12 +83,12 @@ class NEAT:
 	
 	newSpeciesTolerance = 0.9
 
-	# chanceToAddNode = 0.5
+	# chanceToAddNode = 0.3
 	chanceToAddNode = 0.03
 	numOfTriesToFindOldLink = 10
 	
 	chanceToAddLink = 0.05
-	# chanceToAddLink = 0.8
+	# chanceToAddLink = 0.5
 	chanceToAddRecurrentLink = 0.00
 	numOfTriesToFindLoopedLink = 15
 	numOfTriesToAddLink = 20
@@ -224,6 +227,8 @@ class NEAT:
 			# print("adjusted: ", [m.adjustedFitness for m in s.members])
 			avgFitness = sum([m.adjustedFitness for m in s.members])/len(s.members)
 			
+			print("Species:", s.ID, "| No improvement:", s.numOfGensWithoutImprovement)
+			print("Avg:", avgFitness, "| Species avg:", s.avgFitness)
 			if (avgFitness <= s.avgFitness):
 				s.numOfGensWithoutImprovement += 1
 
@@ -280,19 +285,23 @@ class NEAT:
 									numOfAttempts -= 1
 									g2 = speciesMember.spawn()
 
-								if ((g1.ID != g2.ID) or (len(g1.links) < 1) or (len(g2.links)) < 1):
+								if (g1.ID != g2.ID):
 									baby = self.crossover(g1, g2)
+								else:
+									baby = copy(g1)
 							else:
 								baby = copy(g1)
 
 						self.currentGenomeID += 1
 						baby.ID = self.currentGenomeID
 
-						if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
-							baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
+						for i in range(10):
+							if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
+								baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
 
-						baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
-							self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
+						for i in range(10):
+							baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
+								self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
 						
 						baby.mutateWeights(self.mutationRate, self.probabilityOfWeightReplaced,
 							self.maxWeightPerturbation)

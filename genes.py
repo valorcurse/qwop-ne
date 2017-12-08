@@ -482,5 +482,5 @@ class CNeuralNet:
 			if (currentNeuron.neuronType == NeuronType.OUTPUT):
 				outputs.append(currentNeuron.output)
 
-		print("outputs:", outputs)
+		# print("outputs:", outputs)
 		return outputs

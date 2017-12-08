@@ -24,6 +24,7 @@ import time
 import io
 import base64
 import re
+import os
 
 class Key(Enum):
 	Q = 0
@@ -39,8 +40,9 @@ class QWOP:
 		self.browser.set_window_size(640, 480)
 		self.browser.get('http://www.foddy.net/Athletics.html?webgl=true')
 		self.browser.implicitly_wait(10)
+		# os.system("xdotool search 'QWOP - Mozilla Firefox' windowmove 2560 100")
 
-		time.sleep(2)
+		time.sleep(4)
 
 		self.canvas = self.browser.find_element_by_id('window1')
 
@@ -89,7 +91,7 @@ class QWOP:
 
 		# Crop image to element
 		im = im.crop((self.left, self.top, self.right, self.bottom))
-
+		
 		# Converto to mat
 		self.image = cv2.cvtColor(np.array(im), cv2.COLOR_RGB2BGR)
 		self.grayImage = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
@@ -101,6 +103,10 @@ class QWOP:
 			tesseract.SetImage(Image.fromarray(scoreImage))
 			score = re.search('((-)?\d+(\.\d+)?).*', tesseract.GetUTF8Text())
 			# print(tesseract.GetUTF8Text(), score)
+			if (score == None):
+				print("score is none:", tesseract.GetUTF8Text())
+				return 0
+				
 			return int(float(score.group(1))*100)
 
 	def runningTrack(self):

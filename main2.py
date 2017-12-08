@@ -28,9 +28,9 @@ while True:
 		
 		startTime = None
 
-		print("Network:")
-		print("Hidden neurons: " + 
-			str(len([neuron for neuron in phenotype.neurons if neuron.neuronType == NeuronType.HIDDEN])))
+		# print("Network:")
+		# print("Hidden neurons: " + 
+			# str(len([neuron for neuron in phenotype.neurons if neuron.neuronType == NeuronType.HIDDEN])))
 
 		phenotype.update([randint(1, 10)]*5)
 		fitnessScores.append(randint(1, 100))
