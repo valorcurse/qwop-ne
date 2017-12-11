@@ -27,6 +27,15 @@ def testOrganism(phenotype):
 
 	startTime = None
 
+	introStartTime = time.time()
+	while(not qwop.isAtIntro()):
+		qwop.grabImage()
+		if (time.time() - introStartTime) > 10.0:
+			print("Restarting QWOP instance.")
+			introStartTime = time.time()
+			qwop.stop()
+			qwop = QWOP()
+
 	# print("Network:")
 	# print("Hidden neurons: " + 
 	# 	str(len([neuron for neuron in phenotype.neurons if neuron.neuronType == NeuronType.HIDDEN])))
@@ -86,7 +95,8 @@ if __name__ == '__main__':
 
 		# fitnessScores = []
 
-		pool = Pool(nrOfOrgamisms)
+		# pool = Pool(nrOfOrgamisms)
+		pool = Pool(3)
 		fitnessScores = pool.map(testOrganism, neat.phenotypes)
 		pool.close() 
 		pool.join()
@@ -97,3 +107,6 @@ if __name__ == '__main__':
 		neat.phenotypes = neat.epoch(fitnessScores)
 		print("Generation: " + str(neat.generation))
 		print("Number of innovations: " + str(len(innovations.listOfInnovations)))
+		print("Number of genomes: " + str(len(neat.genomes)))
+		print("Number of species: " + str(len(neat.species)))
+		print("Number of phenotypes: " + str(len(neat.phenotypes)))

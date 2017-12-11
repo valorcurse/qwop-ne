@@ -57,6 +57,9 @@ class QWOP:
 		self.gameIntroTemplate = cv2.imread('intro.png', 0)
 		self.gameLostTemplate = cv2.imread('lost.png', 0)
 
+		self.grayImage = None
+		self.image = None
+
 	def startGame(self):
 		if (self.isAtIntro()):
 			print("Starting game.")
@@ -69,10 +72,16 @@ class QWOP:
 		self.browser.quit()
 
 	def isAtIntro(self):
-		return self.matchTemplate(self.grayImage, self.gameIntroTemplate)
+		if (self.grayImage is None):
+			return False 
+		else:
+			return self.matchTemplate(self.grayImage, self.gameIntroTemplate)
 
 	def isAtGameLost(self):
-		return self.matchTemplate(self.grayImage, self.gameLostTemplate)
+		if (self.grayImage is None):
+			return False
+		else:
+			return self.matchTemplate(self.grayImage, self.gameLostTemplate)
 
 	def isPlayable(self):
 		return (not self.isAtIntro() and not self.isAtGameLost())

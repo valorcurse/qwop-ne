@@ -141,6 +141,9 @@ class CGenome:
 		self.inputs = inputs
 		self.outputs = outputs
 
+	def __lt__(self, other):
+		return self.fitness < other.fitness
+
 	def calculateCompatibilityDistance(self, otherGenome):
 		g1 = g2 = 0
 		numExcess = 0.0
@@ -186,8 +189,9 @@ class CGenome:
 				g2 += 1
 
 		# longest = len(otherGenome.links) if len(otherGenome.links) > len(self.links) else len(self.links)
-		longest = max(len(otherGenome.links), len(self.links))
-		longest = 1.0 if longest < 20 else longest
+		# longest = max(len(otherGenome.links), len(self.links))
+		# longest = 1.0 if longest < 20 else longest
+		longest = 1.0
 		
 		# print("links: ", len(self.links), len(otherGenome.links))
 		# print("longest: " + str(longest))
@@ -291,7 +295,7 @@ class CGenome:
 		chosenLink = 0
 
 		sizeThreshold = self.inputs + self.outputs + 5
-		if (len(self.links) < sizeThreshold):
+		if (len(self.neurons) < sizeThreshold):
 
 			loopFound = False
 			while (triesToFindOldLink and not loopFound):
