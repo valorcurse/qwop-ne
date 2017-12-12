@@ -19,11 +19,11 @@ global innovations
 class CSpecies:
     # TODO: Find out correct values
     youngBonusAgeThreshold = 5
-    # youngFitnessBonus = 1.5
-    youngFitnessBonus = 1.0
+    youngFitnessBonus = 1.5
+    # youngFitnessBonus = 1.0
     oldAgeThreshold = 15
-    # oldAgePenalty = 0.5
-    oldAgePenalty = 1.0
+    oldAgePenalty = 0.5
+    # oldAgePenalty = 1.0
 
     avgFitness = 0.0
     numOfGensWithoutImprovement = 0
@@ -128,16 +128,16 @@ class NEAT:
 
         print("")
         links = []
-        i = 0
-        for outputNeuron in outputs:
-            for inputNeuron in inputs:
-                print("\rCreating links (" + str(i + 1) + "/" + str(len(outputs) * len(inputs)) + ")", end='')
-                # newLink = innovations.createNewLink(inputNeuron, outputNeuron, True, 0.0)
-                if (inputNeuron.neuronType != NeuronType.BIAS):
-                    newLink = innovations.createNewLink(inputNeuron, outputNeuron, True, 0.0)
-                    links.append(newLink)
-
-                i += 1
+        # i = 0
+        # for outputNeuron in outputs:
+        #     for inputNeuron in inputs:
+        #         print("\rCreating links (" + str(i + 1) + "/" + str(len(outputs) * len(inputs)) + ")", end='')
+        #         # newLink = innovations.createNewLink(inputNeuron, outputNeuron, True, 0.0)
+        #         if (inputNeuron.neuronType != NeuronType.BIAS):
+        #             newLink = innovations.createNewLink(inputNeuron, outputNeuron, True, 0.0)
+        #             links.append(newLink)
+        #
+        #         i += 1
 
         print("")
         inputs.extend(outputs)
@@ -151,12 +151,6 @@ class NEAT:
             # newSpecies.members.append(newGenome)
 
             self.currentGenomeID += 1
-
-        # for g in self.genomes:
-        # print("genome: ", g.ID)
-
-        # self.speciesNumber += 1
-        # self.species.append(newSpecies)
 
         # self.phenotypes = self.epoch([0] * len(self.genomes))
         for genome in self.genomes:
@@ -172,41 +166,25 @@ class NEAT:
             print("Mismatch of scores/genomes size.")
             return
 
-        newPop = []
-
         print("Number of species:", len(self.species))
-        print("Genomes:", [g.ID for g in self.genomes])
         # Set fitness score to their respesctive genome
         for index, genome in enumerate(self.genomes):
             genome.fitness = fitnessScores[index]
-        # print("Genome fitness:", genome.ID, genome.fitness)
 
         # Empty species except for best performing genome
         for s in self.species:
             leader = s.leader()
-            print("Current Species:", s.ID, "\t| Leader:", leader.ID, leader.fitness)
-            # print("Leader:", leader.ID, leader.fitness, leader)
-            # print("Members:", [m.ID for m in s.members])
             s.members = [leader]
-        # self.genomes.append(leader)
-        # newPop.append(leader)
-
-        # print("Fitness scores: ", [(g.ID, g.fitness) for g in self.genomes])
-
-        # TODO: ??
-        # sortAndRecord()
 
         print("Total number of genomes: ", len(self.genomes))
         print("Total number of species: ", len(self.species))
         # Distribute genomes to their closest species
         for genome in self.genomes:
             speciesMatched = False
-            # print("-------------------------")
-            # print("Genome:", genome.ID)
-            # print("Hidden neurons:", len([n for n in genome.neurons if n.neuronType == NeuronType.HIDDEN]))
-            # print("Links:", len(genome.links))
+            print("Genome:", genome.ID, 
+                "| Hidden neurons:", len([n for n in genome.neurons if n.neuronType == NeuronType.HIDDEN]),
+                "| Links:", len(genome.links))
 
-            # for s in self.species:
             speciesIndex = 0
             while (speciesIndex < len(self.species)):
                 s = self.species[speciesIndex]
@@ -214,26 +192,17 @@ class NEAT:
                 # print("Leaders: ", [[l.ID, l] for l in leaders])
 
                 if (genome in leaders):
-                    print("Genome", genome.ID, "is already a leader")
                     speciesMatched = True
                     break
 
                 distance = genome.calculateCompatibilityDistance(s.leader())
-                # print("Members: ", [m.ID for m in s.members])
-                # print("Species:", s.ID,
-                # "| Members:", [m.ID for m in s.members],
-                # "| Leader:", s.leader().ID,
-                # "| Distance:", distance)
 
                 # If genome falls within tolerance of species, add it
                 if (distance < self.newSpeciesTolerance):
-                    # print("Species:", s.ID, "| Nr. of Members:", len(s.members), "| Leader:", s.leader().ID, "| Distance:", distance)
-                    # print("Adding member to species " + str(s.ID))
                     s.members.append(genome)
                     speciesMatched = True
                     break
 
-                # print("Distance: " + str(distance))
                 speciesIndex += 1
 
             # Else create a new species
@@ -241,72 +210,51 @@ class NEAT:
                 self.speciesNumber += 1
 
                 newSpecies = CSpecies(self.speciesNumber)
-                # print("Creating new species " + str(newSpecies.ID))
-
                 newSpecies.members.append(genome)
-                # print("Adding genome", genome.ID)
-
                 self.species.append(newSpecies)
 
         # print("Number of species: " + str(len(self.species)))
         for s in self.species:
             leader = s.leader()
-            print("New Species:", s.ID, "\t| Leader:", leader.ID, leader.fitness, leader)
-            print("Members:", [m.ID for m in s.members])
             s.age += 1
             s.adjustFitnesses()
 
         for s in self.species:
-            # print("fitnesses: ", [m.fitness for m in s.members])
-            # print("adjusted: ", [m.adjustedFitness for m in s.members])
             avgFitness = max(1.0, sum([m.adjustedFitness for m in s.members]) / len(s.members))
 
-            # print("Species:", s.ID, "| No improvement:", s.numOfGensWithoutImprovement)
-            # print("Avg:", avgFitness, "| Species avg:", s.avgFitness)
             if (avgFitness <= s.avgFitness):
                 s.numOfGensWithoutImprovement += 1
 
                 if (s.numOfGensWithoutImprovement == self.numGensAllowNoImprovement):
-                    # print("Removing species", s.ID, "for lack of improvement")
                     self.species.remove(s)
                     continue
             else:
                 s.numOfGensWithoutImprovement = 0
 
-            # print("avg fitness:", avgFitness)
             if (avgFitness == 0.0):
                 continue
 
             toSpawn = 0
-            # print("-----------------------------")
-            # print("Species:", s.ID)
-            # print("Nr. of Members:", len(s.members))
-            # print("Average fitness:", avgFitness)
             for member in s.members:
-                # print("Add to spawn: ",
-                # member.fitness, "\t\t\t\t|", member.adjustedFitness, "\t\t\t\t|", member.adjustedFitness/avgFitness)
                 toSpawn += member.adjustedFitness / avgFitness
+                # toSpawn += member.adjustedFitness
 
             s.numToSpawn = max(1.0, toSpawn)
-            print("num to spawn: ", s.numToSpawn)
 
-        # newPop = []
+        newPop = []
 
         for s in self.species:
             numSpawnedSoFar = 0
             if (numSpawnedSoFar < self.numOfSweepers):
                 numToSpawn = round(s.numToSpawn)
-                print("Spawning for species:", s.ID)
-                # print("Spawning", numToSpawn, "members")
+                # print("Spawning for species:", s.ID, "| Amount:", numToSpawn)
                 chosenBestYet = False
 
                 for i in range(numToSpawn):
                     baby = None
-                    # print("spawning")
 
                     if (not chosenBestYet):
                         baby = s.leader()
-                        print("Adding leader", baby.ID, "to new pop")
                         chosenBestYet = True
 
                     else:
@@ -334,13 +282,13 @@ class NEAT:
                         self.currentGenomeID += 1
                         baby.ID = self.currentGenomeID
 
-                        # for i in range(1):
-                        if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
-                            baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
+                        for i in range(1):
+                            if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
+                                baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
 
-                        # for i in range(1):
-                        baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
-                                     self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
+                        for i in range(1):
+                            baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
+                                         self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
 
                         baby.mutateWeights(self.mutationRate, self.probabilityOfWeightReplaced,
                                            self.maxWeightPerturbation)

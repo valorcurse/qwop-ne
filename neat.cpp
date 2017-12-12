@@ -6,20 +6,17 @@ int NumSpawnedSoFar = 0;
 CGenome baby;
 //now to iterate through each species selecting offspring to be mated and
 //mutated
-for (int spc=0; spc<m_vecSpecies.size(); ++spc)
-{
+for (int spc=0; spc<m_vecSpecies.size(); ++spc) {
 //because of the number to spawn from each species is a double
 //rounded up or down to an integer it is possible to get an overflow
 //of genomes spawned. This statement just makes sure that doesn't
 //happen
-	if (NumSpawnedSoFar < CParams::iNumSweepers)
-	{
+	if (NumSpawnedSoFar < CParams::iNumSweepers) {
 //this is the amount of offspring this species is required to
 // spawn. Rounded simply rounds the double up or down.
 		int NumToSpawn = Rounded(m_vecSpecies[spc].NumToSpawn());
 		bool bChosenBestYet = false;
-		while (NumToSpawn--)
-		{
+		while (NumToSpawn--) {
 //first grab the best performing genome from this species and transfer
 //to the new population without mutation. This provides per species
 //elitism
@@ -95,9 +92,9 @@ for (int spc=0; spc<m_vecSpecies.size(); ++spc)
 			{
 				NumToSpawn = 0;
 			}
-}//end while
-}//end if
-}//next species
+		}
+	}
+}
 //if there is an underflow due to a rounding error when adding up all
 //the species spawn amounts, and the amount of offspring falls short of
 //the population size, additional children need to be created and added
@@ -127,4 +124,3 @@ for (gen=0; gen<m_vecGenomes.size(); ++gen)
 //increase generation counter
 ++m_iGeneration;
 return new_phenotypes;
-}

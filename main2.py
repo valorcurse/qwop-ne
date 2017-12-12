@@ -17,7 +17,7 @@ from random import randint
 
 if __name__ == '__main__':
     print("Creating NEAT object")
-    neat = NEAT(5, 5, 4)
+    neat = NEAT(50, 1900, 4)
 
     while True:
         print("----------------------------------------")

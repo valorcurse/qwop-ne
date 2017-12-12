@@ -62,10 +62,10 @@ class QWOP:
 
 	def startGame(self):
 		if (self.isAtIntro()):
-			print("Starting game.")
+			# print("Starting game.")
 			self.canvas.click()
 		elif (self.isAtGameLost()):
-			print("Restarting game.")
+			# print("Restarting game.")
 			self.canvas.send_keys(Keys.SPACE)
 
 	def stop(self):
