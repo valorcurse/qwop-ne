@@ -426,14 +426,15 @@ class CGenome:
                 fromNeuron.linksOut.append(tmpLink)
                 toNeuron.linksIn.append(tmpLink)
 
-        return CNeuralNet(phenotypeNeurons, depth)
+        return CNeuralNet(phenotypeNeurons, depth, self.ID)
 
 
 class CNeuralNet:
 
-    def __init__(self, neurons, depth):
+    def __init__(self, neurons, depth, ID):
         self.neurons = neurons
         self.depth = depth
+        self.ID = ID
 
     # print("--------------------------------------------------------------------------------")
     # print("neural network neurons:", len(self.neurons))

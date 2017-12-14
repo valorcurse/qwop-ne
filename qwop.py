@@ -64,9 +64,15 @@ class QWOP:
 		if (self.isAtIntro()):
 			# print("Starting game.")
 			self.canvas.click()
+			time.sleep(0.25)
 		elif (self.isAtGameLost()):
 			# print("Restarting game.")
 			self.canvas.send_keys(Keys.SPACE)
+			time.sleep(0.5)
+		else:
+			self.canvas.send_keys("r")
+			time.sleep(1)
+
 
 	def stop(self):
 		self.browser.quit()
@@ -116,7 +122,7 @@ class QWOP:
 				print("score is none:", tesseract.GetUTF8Text())
 				return 0
 				
-			return int(float(score.group(1))*100)
+			return max(0, int(float(score.group(1))*100))
 
 	def runningTrack(self):
 		# return self.image[75:-15, :]

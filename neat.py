@@ -236,8 +236,8 @@ class NEAT:
 
             toSpawn = 0
             for member in s.members:
-                toSpawn += member.adjustedFitness / avgFitness
-                # toSpawn += member.adjustedFitness
+                # toSpawn += member.adjustedFitness / avgFitness
+                toSpawn += member.adjustedFitness
 
             s.numToSpawn = max(1.0, toSpawn)
 

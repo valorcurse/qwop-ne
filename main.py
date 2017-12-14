@@ -12,6 +12,11 @@ from torch.autograd import Variable
 
 import multiprocessing
 from multiprocessing import Pool
+import multiprocessing.managers as managers
+from multiprocessing import Queue
+from multiprocessing import SimpleQueue
+
+# import queue
 
 import numpy as np
 import cv2
@@ -19,46 +24,25 @@ import time
 
 import os
 import cProfile
+import pickle
 
 def profiler(phenotype):
     cProfile.runctx('testOrganism(phenotype)', globals(), locals(), 'prof.prof')
 
-def testOrganism(phenotype):
+def testOrganism(phenotype, instances):
     running = True
     gameStarted = False
 
     fitnessScore = 0
 
-    startTime = None
-
-    qwop = None
-    introStartTime = time.time()
-    while (qwop == None or not qwop.isAtIntro()):
-        try:
-            qwop = QWOP()
-        except TimeoutException:
-            qwop.stop()
-            continue
-
-        qwop.grabImage()
-        if (time.time() - introStartTime) > 30.0:
-            print("Restarting QWOP instance.")
-            introStartTime = time.time()
-            qwop.stop()
-
-    # print("Network:")
-    # print("Hidden neurons: " +
-    #   str(len([neuron for neuron in phenotype.neurons if neuron.neuronType == NeuronType.HIDDEN])))
+    qwop = instances.get()
 
     while (running):
         qwop.grabImage()
-
-        if (not qwop.isPlayable()):
-            if (not gameStarted):
-                gameStarted = True
-                qwop.startGame()
-            else:
-                running = False
+        
+        if (not gameStarted):
+            gameStarted = True
+            qwop.startGame()
         else:
             previousFitnessScore = fitnessScore
             fitnessScore = qwop.score()
@@ -69,49 +53,62 @@ def testOrganism(phenotype):
                 else:
                     # print("\rTime standing still: " + str(time.time() - startTime), end='')
                     if (time.time() - startTime) > 3.0:
-                        # print("")
-                        # print("Stopping game.")
                         running = False
             else:
                 startTime = None
 
             predicted = np.argmax(phenotype.update(qwop.runningTrack().flatten()), axis=0)
-
             qwop.pressKey(Key(predicted).name)
 
-    # print("")
-    # print("Fitness score: " + str(fitnessScore))
-    # fitnessScores.append(fitnessScore)
-    qwop.stop()
+    instances.put(qwop)
 
     return fitnessScore
 
+class QueueManager(managers.BaseManager):
+    pass # Pass is really enough. Nothing needs to be done here.
 
 if __name__ == '__main__':
-    qwop = QWOP()
-    # net = Net()
-    # net.cuda()
-
-    qwop.grabImage()
-    # cv2.imshow('running track', qwop.runningTrack())
-    # cv2.waitKey()
-
-    print("Creating NEAT object")
-    nrOfOrgamisms = 20
-    neat = NEAT(nrOfOrgamisms, qwop.runningTrack().size, 4)
-    qwop.stop()
 
     multiprocessing.set_start_method('spawn')
-    while True:
-        # fitnessScores = []
+    QueueManager.register("QWOP", QWOP)
+    queueManager = QueueManager()
+    queueManager.start()
+    # qwop = QWOP()
 
-        # pool = Pool(nrOfOrgamisms)
-        pool = Pool(5)
-        fitnessScores = pool.map(testOrganism, neat.phenotypes)
-        # fitnessScores = pool.map(profiler, neat.phenotypes)
+    # qwop.grabImage()
+
+    # qwop.stop()
+
+    nrOfInstances = 1
+    nrOfOrgamisms = 20
+
+    # qwop=QWOP()
+    # print(test_pickle(qwop))
+
+    # instances = SimpleQueue()
+    instances = multiprocessing.Manager().Queue()
+    for i in range(nrOfInstances):
+        newQWOP = queueManager.QWOP()
+        print(newQWOP)
+        instances.put(newQWOP)
+
+    print("Creating NEAT object")
+    # instance = instances.get()
+    # instance.grabImage()
+    # neat = NEAT(nrOfOrgamisms, instance.runningTrack().size, 4)
+    neat = NEAT(nrOfOrgamisms, 1840, 4)
+    # instances.put(instance)
+
+    while True:
+        results = {}
+
+        pool = Pool(nrOfInstances)
+        for i, phenotype in enumerate(neat.phenotypes):
+            results[i] = pool.apply_async(testOrganism, (phenotype, instances))
         pool.close()
         pool.join()
 
+        fitnessScores = [result.get() for func, result in results.items()]
 
         print("-----------------------------------------------------")
         print(fitnessScores)
