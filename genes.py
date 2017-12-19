@@ -2,8 +2,17 @@ import random
 from random import randint
 
 import math
+from math import cos, sin, atan, ceil, floor
 from enum import Enum
 
+from matplotlib import pyplot
+
+image_width = 34
+image_height = 31
+horizontal_distance_between_layers = 5
+vertical_distance_between_neurons = 5
+neuron_radius = 1
+number_of_neurons_in_widest_layer = 4
 
 class InnovationType(Enum):
     NEURON = 0
@@ -27,11 +36,11 @@ class SInnovation:
         self.neuronID = neuronID
         self.neuronType = neuronType
 
-
 class Innovations:
-    listOfInnovations = []
+    def __init__(self):
+        self.listOfInnovations = []
 
-    currentNeuronID = 0
+        self.currentNeuronID = -1
 
     def createNewLinkInnovation(self, fromNeuron, toNeuron):
         newInnovation = SInnovation(InnovationType.LINK, len(self.listOfInnovations), fromNeuron, toNeuron, -1,
@@ -113,9 +122,9 @@ class SNeuronGene:
 
 class SLink:
 
-    def __init__(self, neuronIn, neuronOut, weight, recurrent=False):
-        self.neuronIn = neuronIn
-        self.neuronOut = neuronOut
+    def __init__(self, fromNeuron, toNeuron, weight, recurrent=False):
+        self.fromNeuron = fromNeuron
+        self.toNeuron = toNeuron
 
         self.weight = weight
 
@@ -140,6 +149,34 @@ class SNeuron:
         self.splitX = x
         self.splitY = y
 
+    def __line_between_two_neurons(self, neuron1, neuron2):
+        angle = atan((neuron2[0] - neuron1[0]) / float(neuron2[1] - neuron1[1]))
+        x_adjustment = 0
+        y_adjustment = 0
+        line = pyplot.Line2D(
+            (neuron1[0] - x_adjustment, neuron2[0] + x_adjustment), 
+            (neuron1[1] - y_adjustment, neuron2[1] + y_adjustment))
+        pyplot.gca().add_line(line)
+
+    def draw(self):
+        circle = pyplot.Circle(
+            (self.posX, self.posY), 
+            radius=neuron_radius, fill=False)
+        pyplot.gca().add_patch(circle)
+
+        for l in self.linksIn:
+            fromNeuron = l.fromNeuron
+            if fromNeuron.neuronType == NeuronType.INPUT:
+                # print(fromNeuron.ID % image_width, floor(fromNeuron.ID / image_width))
+                self.__line_between_two_neurons(
+                    (fromNeuron.ID % image_width, floor(fromNeuron.ID / image_width)), 
+                    (self.posX, self.posY))
+            else:
+                self.__line_between_two_neurons(
+                    (fromNeuron.posX, fromNeuron.posY), 
+                    (self.posX, self.posY))
+
+            pyplot.pause(0.005)
 
 class CGenome:
 
@@ -292,6 +329,7 @@ class CGenome:
             newGene = SLinkGene(neuron1, neuron2, True, ID, randomClamped, recurrent)
             self.links.append(newGene)
 
+
     def addNeuron(self, mutationRate, triesToFindOldLink):
 
         if (len(self.links) < 5):
@@ -324,13 +362,18 @@ class CGenome:
                 return
 
         else:
-
+            i = 0
             while (not done):
+                if (i > 20):
+                    print("stuck looking for link")
+                    i = 0
                 chosenLink = self.links[randint(0, len(self.links) - 1)]
                 fromNeuron = chosenLink.fromNeuron
 
                 if (chosenLink.enabled and (not chosenLink.recurrent) and (fromNeuron.neuronType != NeuronType.BIAS)):
                     done = True
+
+                i += 1
 
         chosenLink.enabled = False
 
@@ -396,13 +439,9 @@ class CGenome:
                     link.weight += random.uniform(-1, 1) * maxWeightPerturbation
 
     def createPhenotype(self, depth):
-        # deletePhenotype()
-
         phenotypeNeurons = []
 
-        # print("creating phenotype:")
         for neuron in self.neurons:
-            # print("neuron id:", neuron.ID)
             phenotypeNeurons.append(
                 SNeuron(neuron.neuronType,
                         neuron.ID,
@@ -412,7 +451,6 @@ class CGenome:
 
         for link in self.links:
             if (link.enabled):
-                # print("link:", link)
                 fromNeuron = next((neuron
                                    for neuron in (phenotypeNeurons) if (neuron.ID == link.fromNeuron.ID)), None)
                 toNeuron = next((neuron
@@ -436,61 +474,94 @@ class CNeuralNet:
         self.depth = depth
         self.ID = ID
 
-    # print("--------------------------------------------------------------------------------")
-    # print("neural network neurons:", len(self.neurons))
-    # for neuron in self.neurons:
-    # 	print(neuron.neuronType, neuron.ID, neuron.splitY)
-    # 	print("\tlinksin:", [link.neuronIn.ID for link in neuron.linksIn])
+        self.toDraw = False
+        self.layers = []
+        uniqueDepths = sorted(set([n.splitY for n in self.neurons]))
+        for d in uniqueDepths:
+            if d == 0:
+                continue
+
+            neuronsToDraw = [n for n in self.neurons 
+                if n.neuronType in [NeuronType.HIDDEN, NeuronType.OUTPUT] and n.splitY == d]
+            self.layers.append(Layer(self, neuronsToDraw))
+
+
+    def draw(self, image):
+        pyplot.clf()
+        pyplot.imshow(image, cmap='gray')
+        pyplot.xticks([]), pyplot.yticks([])  # to hide tick values on X and Y axis
+        for layer in self.layers:
+            layer.draw()
+
+        # pyplot.draw()
+        pyplot.axis('scaled')
+        pyplot.pause(1)
+        # pyplot.show()
 
     def sigmoid(self, x):
         return 1 / (1 + math.exp(-x))
 
     def update(self, inputs):
-
-        # if (len(self.neurons) < 1 or len(self.links) < 1):
-        # return [0]*len([neuron for neuron in self.neurons if neuron.neuronType == NeuronType.OUTPUT])
-
         outputs = []
 
         neuronIndex = 0
-        # print("inputs", inputs)
 
         # Set input neurons values
         inputNeurons = [neuron for neuron in self.neurons if neuron.neuronType == NeuronType.INPUT]
         for inputNeuron in inputs:
-            # print("inputNeuron:", inputNeuron)
-            # print("index:", neuronIndex)
             self.neurons[neuronIndex].output = inputNeuron
             neuronIndex += 1
 
         # Set bias
         self.neurons[neuronIndex].output = 1
 
-        # neuronIndex += 1
-
-        # neuronIndex = 0
-        # print("--------------------------------------------------------------------------------")
         for currentNeuron in self.neurons:
             neuronSum = 0.0
 
-            # print("neuron:", currentNeuron.ID, currentNeuron.neuronType, currentNeuron.splitY)
             for link in currentNeuron.linksIn:
                 weight = link.weight
 
-                # print(link.neuronIn.output, weight)
-                # print("neuronin: ", link.neuronIn, link.neuronIn.output)
-                neuronOutput = link.neuronIn.output
-                # print("neuronOutput:", neuronOutput)
-                # print("neuronSum=", weight, neuronOutput, (weight * neuronOutput))
+                neuronOutput = link.fromNeuron.output
                 neuronSum += weight * neuronOutput
 
-            # currentNeuron.output = self.sigmoid(neuronSum, currentNeuron.activationResponse)
             currentNeuron.output = self.sigmoid(neuronSum)
-            # print("output", currentNeuron.output)
-            # print("")
 
             if (currentNeuron.neuronType == NeuronType.OUTPUT):
                 outputs.append(currentNeuron.output)
 
         # print("outputs:", outputs)
         return outputs
+
+class Layer():
+    def __init__(self, network, neuronsToDraw):
+        self.previous_layer = self.__get_previous_layer(network)
+        self.x = self.__calculate_layer_x_position()
+        
+        self.neurons = neuronsToDraw
+        self.__intialise_neurons()
+
+    def __intialise_neurons(self):
+        startY = self.__calculate_top_margin_so_layer_is_centered(len(self.neurons))
+        for neuron in self.neurons:
+            neuron.posX = self.x
+            neuron.posY = startY
+            startY += vertical_distance_between_neurons
+
+    def __calculate_top_margin_so_layer_is_centered(self, number_of_neurons):
+        return image_height/number_of_neurons + vertical_distance_between_neurons * (number_of_neurons_in_widest_layer - number_of_neurons) / 2
+
+    def __calculate_layer_x_position(self):
+        if self.previous_layer:
+            return self.previous_layer.x + horizontal_distance_between_layers
+        else:
+            return image_width + horizontal_distance_between_layers + neuron_radius
+
+    def __get_previous_layer(self, network):
+        if len(network.layers) > 0:
+            return network.layers[-1]
+        else:
+            return None
+
+    def draw(self):
+        for neuron in self.neurons:
+            neuron.draw()

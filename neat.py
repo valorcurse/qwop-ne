@@ -15,7 +15,6 @@ from genes import innovations
 
 global innovations
 
-
 class CSpecies:
     # TODO: Find out correct values
     youngBonusAgeThreshold = 5
@@ -83,10 +82,11 @@ class NEAT:
     # maxNumberOfNeuronsPermitted = 15
     maxNumberOfNeuronsPermitted = 10000
 
-    newSpeciesTolerance = 3.0
+    # newSpeciesTolerance = 3.0
+    newSpeciesTolerance = 15.0
 
-    # chanceToAddNode = 0.3
-    chanceToAddNode = 0.03
+    chanceToAddNode = 0.1
+    # chanceToAddNode = 0.03
     numOfTriesToFindOldLink = 10
 
     # chanceToAddLink = 0.05
@@ -117,8 +117,8 @@ class NEAT:
 
         print("")
 
-        biasInput = innovations.createNewNeuron(None, None, n, 0.0, NeuronType.BIAS)
-        inputs.append(biasInput)
+        # biasInput = innovations.createNewNeuron(None, None, n, 0.0, NeuronType.BIAS)
+        # inputs.append(biasInput)
 
         outputs = []
         for n in range(numOfOutputs):
@@ -130,13 +130,14 @@ class NEAT:
         links = []
         # i = 0
         # for outputNeuron in outputs:
+        #     # inputNeuron = inputs[0]
         #     for inputNeuron in inputs:
         #         print("\rCreating links (" + str(i + 1) + "/" + str(len(outputs) * len(inputs)) + ")", end='')
         #         # newLink = innovations.createNewLink(inputNeuron, outputNeuron, True, 0.0)
         #         if (inputNeuron.neuronType != NeuronType.BIAS):
         #             newLink = innovations.createNewLink(inputNeuron, outputNeuron, True, 0.0)
         #             links.append(newLink)
-        #
+        
         #         i += 1
 
         print("")
@@ -221,6 +222,7 @@ class NEAT:
 
         for s in self.species:
             avgFitness = max(1.0, sum([m.adjustedFitness for m in s.members]) / len(s.members))
+            sumAdjustedFitness = sum([m.adjustedFitness for m in s.members])
 
             if (avgFitness <= s.avgFitness):
                 s.numOfGensWithoutImprovement += 1
@@ -231,15 +233,18 @@ class NEAT:
             else:
                 s.numOfGensWithoutImprovement = 0
 
-            if (avgFitness == 0.0):
-                continue
-
             toSpawn = 0
             for member in s.members:
                 # toSpawn += member.adjustedFitness / avgFitness
-                toSpawn += member.adjustedFitness
+                toSpawn = 0
+                if sumAdjustedFitness > 0:
+                    toSpawn = max(6, member.adjustedFitness / sumAdjustedFitness)
+                else:
+                    toSpawn = 6
 
-            s.numToSpawn = max(1.0, toSpawn)
+                # toSpawn += member.adjustedFitness
+
+            s.numToSpawn = max(6.0, toSpawn)
 
         newPop = []
 
@@ -247,7 +252,7 @@ class NEAT:
             numSpawnedSoFar = 0
             if (numSpawnedSoFar < self.numOfSweepers):
                 numToSpawn = round(s.numToSpawn)
-                # print("Spawning for species:", s.ID, "| Amount:", numToSpawn)
+                print("Spawning for species:", s.ID, "| Amount:", numToSpawn)
                 chosenBestYet = False
 
                 for i in range(numToSpawn):
@@ -286,7 +291,7 @@ class NEAT:
                             if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
                                 baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
 
-                        for i in range(1):
+                        for i in range(5):
                             baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
                                          self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
 
@@ -297,31 +302,23 @@ class NEAT:
 
                     baby.links.sort()
 
-                    # print("Adding new baby:", baby, baby.ID)
                     newPop.append(baby)
+
                     # print("New pop:", [g.ID for g in newPop])
                     numSpawnedSoFar += 1
 
-                # if (numSpawnedSoFar == self.numOfSweepers):
-                # numToSpawn = 0
-                # break
-
         # print("newpop:", len(newPop))
-        if (numSpawnedSoFar < self.numOfSweepers):
-            requiredNumberOfSpawns = self.numOfSweepers - numSpawnedSoFar
+        # if (numSpawnedSoFar < self.numOfSweepers):
+            # requiredNumberOfSpawns = self.numOfSweepers - numSpawnedSoFar
 
         # for i in requiredNumberOfSpawns:
         # newPop.append(TournamentSelection())
 
-        # print("New pop:", [g.ID for g in newPop])
         self.genomes = newPop
-        # print("New pop:", [g.ID for g in self.genomes])
 
         newPhenotypes = []
 
         for genome in self.genomes:
-            # depth = calculateNetDepth(genome
-
             depth = len(set(n.splitY for n in genome.neurons))
             phenotype = genome.createPhenotype(depth)
 
@@ -334,13 +331,6 @@ class NEAT:
     def crossover(self, mum, dad):
         best = None
 
-        # if (len(mum.links) < 1 or len(dad.links) < 1):
-        # 	print("mom or dad have no genes")
-        # 	best = random.choice([mum, dad])
-
-        # 	self.currentGenomeID += 1
-        # 	return CGenome(self.currentGenomeID, best.neurons, best.links, best.inputs, best.outputs)
-
         if (mum.fitness == dad.fitness):
             if (len(mum.links) == len(dad.links)):
                 best = random.choice([mum, dad])
@@ -349,17 +339,12 @@ class NEAT:
         else:
             best = mum if mum.fitness > dad.fitness else dad
 
-        # print("best is ", "mum" if best == mum else "dad")
-
         babyNeurons = [n for n in mum.neurons
                        if (n.neuronType in [NeuronType.INPUT, NeuronType.BIAS, NeuronType.OUTPUT])]
-        babyLinks = []
 
-        # print("parent neurons: ", len(mum.neurons), len(dad.neurons))
-        # print("parent links: ", len(mum.links), len(dad.links))
+        babyLinks = []
         selectedLink = None
         mumIt = dadIt = 0
-        # while(not (mumIt == len(mum.links) and dadIt == len(dad.links))):
         while (mumIt < len(mum.links) or dadIt < len(dad.links)):
 
             if mumIt < len(mum.links):

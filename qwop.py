@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
 from selenium import webdriver
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
 
 from PIL import Image
 from base64 import b64decode
@@ -39,12 +42,16 @@ class QWOP:
 		self.browser = webdriver.Firefox()
 		self.browser.set_window_size(640, 480)
 		self.browser.get('http://www.foddy.net/Athletics.html?webgl=true')
-		self.browser.implicitly_wait(10)
+		# self.browser.implicitly_wait(10)
 		# os.system("xdotool search 'QWOP - Mozilla Firefox' windowmove 2560 100")
 
-		time.sleep(4)
 
-		self.canvas = self.browser.find_element_by_id('window1')
+
+		self.canvas = WebDriverWait(self.browser, 20).until(
+        	EC.presence_of_element_located((By.ID, "window1")))
+
+		time.sleep(4)
+		# self.canvas = self.browser.find_element_by_id('window1')
 
 		location = self.canvas.location
 		size = self.canvas.size
@@ -64,14 +71,22 @@ class QWOP:
 		if (self.isAtIntro()):
 			# print("Starting game.")
 			self.canvas.click()
-			time.sleep(0.25)
 		elif (self.isAtGameLost()):
 			# print("Restarting game.")
-			self.canvas.send_keys(Keys.SPACE)
-			time.sleep(0.5)
+			# self.canvas.send_keys(Keys.SPACE)
+			actions = ActionChains(self.browser) 
+			actions.key_down(Keys.SPACE)
+			actions.perform()
+			actions.reset_actions()
+			time.sleep(3)
 		else:
-			self.canvas.send_keys("r")
-			time.sleep(1)
+			# self.canvas.send_keys("r")
+			# self.pressKey("r")
+			actions = ActionChains(self.browser) 
+			actions.key_down("r")
+			actions.perform()
+			actions.reset_actions()
+			time.sleep(3)
 
 
 	def stop(self):
@@ -95,6 +110,8 @@ class QWOP:
 	def pressKey(self, key):
 		# print("Pressing key " + key)
 		actions = ActionChains(self.browser) 
+		
+		actions.reset_actions()
 		actions.key_down(key)
 		actions.perform()
 
@@ -127,8 +144,11 @@ class QWOP:
 	def runningTrack(self):
 		# return self.image[75:-15, :]
 		# return self.image[75:-15, 100:-275]
-		grey = cv2.cvtColor(self.image[75:-15, 100:-275], cv2.COLOR_BGR2GRAY)
-		grey = cv2.resize(grey, (0,0), fx=0.15, fy=0.15)
+		grey = cv2.cvtColor(self.image[75:-15, 100:-200], cv2.COLOR_BGR2GRAY)
+		grey = cv2.resize(grey, (0,0), fx=0.10, fy=0.10)
+		# print("size:", grey.size)
+		# cv2.imshow("runningTrack", grey)
+		# cv2.waitKey()
 		return grey
 
 	def matchTemplate(self, image, template):
