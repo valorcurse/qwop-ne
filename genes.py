@@ -150,6 +150,14 @@ class SNeuron:
         self.splitY = y
 
     def __line_between_two_neurons(self, neuron1, neuron2):
+        # print(neuron1, neuron2)
+        # print((neuron2[0] - neuron1[0]),
+        #     float(neuron2[1] - neuron1[1]), 
+        #     (neuron2[0] - neuron1[0]) / float(neuron2[1] - neuron1[1]))
+
+        if (neuron1[0] == neuron2[0] or neuron1[1] == neuron2[1]):
+            return
+
         angle = atan((neuron2[0] - neuron1[0]) / float(neuron2[1] - neuron1[1]))
         x_adjustment = 0
         y_adjustment = 0
@@ -167,11 +175,13 @@ class SNeuron:
         for l in self.linksIn:
             fromNeuron = l.fromNeuron
             if fromNeuron.neuronType == NeuronType.INPUT:
-                # print(fromNeuron.ID % image_width, floor(fromNeuron.ID / image_width))
+                # print((fromNeuron.ID % image_width, floor(fromNeuron.ID / image_width)),
+                    # (self.posX, self.posY))
                 self.__line_between_two_neurons(
                     (fromNeuron.ID % image_width, floor(fromNeuron.ID / image_width)), 
                     (self.posX, self.posY))
             else:
+                # print((fromNeuron.posX, fromNeuron.posY), (self.posX, self.posY))
                 self.__line_between_two_neurons(
                     (fromNeuron.posX, fromNeuron.posY), 
                     (self.posX, self.posY))
@@ -513,23 +523,32 @@ class CNeuralNet:
             neuronIndex += 1
 
         # Set bias
-        self.neurons[neuronIndex].output = 1
+        self.neurons[neuronIndex].output = 1.0
 
-        for currentNeuron in self.neurons:
+        # print("Neurons:", len(self.neurons))
+        # print("update 1")
+        for i, currentNeuron in enumerate(self.neurons):
             neuronSum = 0.0
-
-            for link in currentNeuron.linksIn:
+            # print("Neuron " + str(i) + "/" + str(len(self.neurons)) + ")")
+            # print("update 2")
+            for x, link in enumerate(currentNeuron.linksIn):
+                # print("Link " + str(x) + "/" + str(len(currentNeuron.linksIn)) + ")")
                 weight = link.weight
 
                 neuronOutput = link.fromNeuron.output
+                # print(weight, neuronOutput)
                 neuronSum += weight * neuronOutput
+                # print("update 3")
 
+            # print("neuroSum", neuronSum)
             currentNeuron.output = self.sigmoid(neuronSum)
 
             if (currentNeuron.neuronType == NeuronType.OUTPUT):
                 outputs.append(currentNeuron.output)
+                # print("update 4")
 
         # print("outputs:", outputs)
+        # print("update 5")
         return outputs
 
 class Layer():

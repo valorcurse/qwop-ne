@@ -38,20 +38,21 @@ class Key(Enum):
 class QWOP:
 
 	def __init__(self):
+		options = webdriver.ChromeOptions()
+		# options.add_argument('headless')
+		options.add_argument('window-size=640x480')
 
-		self.browser = webdriver.Firefox()
-		self.browser.set_window_size(640, 480)
+		# self.browser = webdriver.Firefox()
+		self.browser = webdriver.Chrome(chrome_options=options)
+		# self.browser.set_window_size(640, 480)
 		self.browser.get('http://www.foddy.net/Athletics.html?webgl=true')
-		# self.browser.implicitly_wait(10)
-		# os.system("xdotool search 'QWOP - Mozilla Firefox' windowmove 2560 100")
 
+		# self.canvas = WebDriverWait(self.browser, 20).until(
+        	# EC.presence_of_element_located((By.ID, "window1")))
+		self.browser.implicitly_wait(10)
+		self.canvas = self.browser.find_element_by_id("window1")
 
-
-		self.canvas = WebDriverWait(self.browser, 20).until(
-        	EC.presence_of_element_located((By.ID, "window1")))
-
-		time.sleep(4)
-		# self.canvas = self.browser.find_element_by_id('window1')
+		time.sleep(2)
 
 		location = self.canvas.location
 		size = self.canvas.size
@@ -108,10 +109,10 @@ class QWOP:
 		return (not self.isAtIntro() and not self.isAtGameLost())
 
 	def pressKey(self, key):
-		# print("Pressing key " + key)
+		print("Pressing key " + key)
 		actions = ActionChains(self.browser) 
 		
-		actions.reset_actions()
+		# actions.reset_action(s)
 		actions.key_down(key)
 		actions.perform()
 

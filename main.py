@@ -24,8 +24,32 @@ import os
 import sys
 import pickle
 import random
-# import _pickle as cPickle
+import cProfile
 import argparse
+import traceback
+
+# Shortcut to multiprocessing's logger
+def error(msg, *args):
+    return multiprocessing.get_logger().error(msg, *args)
+
+class LogExceptions(object):
+    def __init__(self, callable):
+        self.__callable = callable
+
+    def __call__(self, *args, **kwargs):
+        try:
+            result = self.__callable(*args, **kwargs)
+
+        except Exception as e:
+            # Here we add some debugging help. If multiprocessing's
+            # debugging is on, it will arrange to log the traceback
+            error(traceback.format_exc())
+            # Re-raise the original exception so the Pool worker can
+            # clean up
+            raise
+
+        # It was fine, give a normal answer
+        return result
 
 def profiler(phenotype):
     cProfile.runctx('testOrganism(phenotype)', globals(), locals(), 'prof.prof')
@@ -42,14 +66,17 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
         phenotype.draw(qwop.runningTrack())
         phenotype.toDraw = False
 
+    differentKeysPressed = []
     startTime = None
     while (running):
         qwop.grabImage()
+
+        # cv2.imshow("image", qwop.runningTrack())
+        # cv2.waitKey(16)
         
         if (not gameStarted):
             gameStarted = True
             qwop.startGame()
-            # time.sleep(1)
         else:
             if (qwop.isPlayable()):
                 previousFitnessScore = fitnessScore
@@ -65,18 +92,25 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
                 else:
                     startTime = None
 
-                predicted = np.argmax(phenotype.update(qwop.runningTrack().flatten()), axis=0)
-                qwop.pressKey(Key(predicted).name)
+                inputs = qwop.runningTrack().flatten()
+                outputs = phenotype.update(inputs)
+                maxOutput = np.argmax(outputs, axis=0)
+                predicted = Key(maxOutput).name
+                qwop.pressKey(predicted)
+
+                if (not predicted in differentKeysPressed):
+                    differentKeysPressed.append(predicted)
             else:
                 running = False
 
     finishedIndex.value += 1
     print("\rFinished phenotype ("+ str(finishedIndex.value) +"/"+ str(nrOfPhenotypes) +")", end='')
+    # print("Finished phenotype ("+ str(finishedIndex.value) +"/"+ str(nrOfPhenotypes) +")")
 
     instances.put(qwop)
 
-    # print("\rFinished phenotype ("+ i +"/"+ nrOfPhenotypes +")", end='')
-    # print("Finished phenotype ("+ i +"/"+ nrOfPhenotypes +")")
+    fitnessScore = max(0, fitnessScore)
+    fitnessScore = pow(fitnessScore, len(differentKeysPressed))
 
     return fitnessScore
 
@@ -97,12 +131,13 @@ if __name__ == '__main__':
 
     sys.setrecursionlimit(10000)
     multiprocessing.set_start_method('spawn')
+    multiprocessing.log_to_stderr()
     QueueManager.register("QWOP", QWOP)
     queueManager = QueueManager()
     queueManager.start()
 
-    nrOfInstances = 6
-    nrOfOrgamisms = 6
+    nrOfInstances = 1
+    nrOfOrgamisms = 25
 
     instances = multiprocessing.Manager().Queue()
     for i in range(nrOfInstances):
@@ -119,26 +154,23 @@ if __name__ == '__main__':
         print("Creating NEAT object")
         neat = NEAT(nrOfOrgamisms, 1054, 4)
 
-    # pyplot.ion()
-    # pyplot.show()
     pyplot.show(block=False)
-
+    
     while True:
         results = {}
 
-        randomPhenotype = random.choice(neat.phenotypes)
-        randomPhenotype.toDraw = True
+        # randomPhenotype = random.choice(neat.phenotypes)
+        # randomPhenotype.toDraw = True
 
         pool = Pool(nrOfInstances)
         finishedIndex = multiprocessing.Manager().Value('i', 0)
         for i, phenotype in enumerate(neat.phenotypes):
             results[i] = pool.apply_async(testOrganism, (phenotype, instances, finishedIndex, len(neat.phenotypes)))
+            # results[i] = pool.apply_async(LogExceptions(testOrganism), (phenotype, instances, finishedIndex, len(neat.phenotypes)))
         pool.close()
         pool.join()
 
         fitnessScores = [result.get() for func, result in results.items()]
-
-        # pyplot.pause(0.05)
 
         print("")
         print("-----------------------------------------------------")

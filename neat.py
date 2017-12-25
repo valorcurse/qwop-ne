@@ -83,7 +83,7 @@ class NEAT:
     maxNumberOfNeuronsPermitted = 10000
 
     # newSpeciesTolerance = 3.0
-    newSpeciesTolerance = 15.0
+    newSpeciesTolerance = 5
 
     chanceToAddNode = 0.1
     # chanceToAddNode = 0.03
@@ -220,6 +220,7 @@ class NEAT:
             s.age += 1
             s.adjustFitnesses()
 
+        minToSpawn = 25
         for s in self.species:
             avgFitness = max(1.0, sum([m.adjustedFitness for m in s.members]) / len(s.members))
             sumAdjustedFitness = sum([m.adjustedFitness for m in s.members])
@@ -238,13 +239,13 @@ class NEAT:
                 # toSpawn += member.adjustedFitness / avgFitness
                 toSpawn = 0
                 if sumAdjustedFitness > 0:
-                    toSpawn = max(6, member.adjustedFitness / sumAdjustedFitness)
+                    toSpawn = max(minToSpawn, member.adjustedFitness / sumAdjustedFitness)
                 else:
-                    toSpawn = 6
+                    toSpawn = minToSpawn
 
                 # toSpawn += member.adjustedFitness
 
-            s.numToSpawn = max(6.0, toSpawn)
+            s.numToSpawn = max(minToSpawn, toSpawn)
 
         newPop = []
 
@@ -287,13 +288,13 @@ class NEAT:
                         self.currentGenomeID += 1
                         baby.ID = self.currentGenomeID
 
-                        for i in range(1):
-                            if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
-                                baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
+                        # for i in range(5):
+                        if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
+                            baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
 
-                        for i in range(5):
-                            baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
-                                         self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
+                        # for i in range(5):
+                        baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
+                                     self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
 
                         baby.mutateWeights(self.mutationRate, self.probabilityOfWeightReplaced,
                                            self.maxWeightPerturbation)
