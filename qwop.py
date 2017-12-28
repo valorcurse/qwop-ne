@@ -8,6 +8,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 
+# from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+
 from PIL import Image
 from base64 import b64decode
 
@@ -29,33 +33,94 @@ import base64
 import re
 import os
 
+import json
+
 class Key(Enum):
 	Q = 0
 	W = 1
 	O = 2
 	P = 3
 
+options = {
+	Key.Q: { \
+		"code": "KeyQ",
+		"key": "q",
+		"text": "q",
+		"unmodifiedText": "q",
+		"nativeVirtualKeyCode": ord("Q"),
+		"windowsVirtualKeyCode": ord("Q")
+  	},
+	Key.W: { \
+		"code": "KeyW",
+		"key": "w",
+		"text": "w",
+		"unmodifiedText": "w",
+		"nativeVirtualKeyCode": ord("W"),
+		"windowsVirtualKeyCode": ord("W")
+	},
+	Key.O: { \
+		"code": "KeyO",
+		"key": "o",
+		"text": "o",
+		"unmodifiedText": "o",
+		"nativeVirtualKeyCode": ord("O"),
+		"windowsVirtualKeyCode": ord("O")
+	},
+	Key.P: { \
+		"code": "KeyP",
+		"key": "p",
+		"text": "p",
+		"unmodifiedText": "p",
+		"nativeVirtualKeyCode": ord("P"),
+		"windowsVirtualKeyCode": ord("P")
+	},
+}
+
+
 class QWOP:
 
 	def __init__(self):
-		options = webdriver.ChromeOptions()
-		# options.add_argument('headless')
-		options.add_argument('window-size=640x480')
+		# options = Options()
+		# options.add_argument('--headless')
+		# options.add_argument('--disable-gpu')
+		
+		# options = Options()
+		# options.add_argument('--disable-infobars')
+		# options.binary_location = r'/usr/bin/chromium-browser'
+		# options.add_argument('window-size=640x480')
+
+		capa = DesiredCapabilities.CHROME;
+		capa['chromeOptions'] = {
+		  'binary': r'/usr/bin/chromium-browser',
+		  'args': ["--disable-infobars"]
+		}
 
 		# self.browser = webdriver.Firefox()
-		self.browser = webdriver.Chrome(chrome_options=options)
-		# self.browser.set_window_size(640, 480)
+		# self.browser = webdriver.Chrome(chrome_options=options)
+		self.browser = webdriver.Chrome(desired_capabilities=capa)
+		self.browser.set_window_size(640, 480)
 		self.browser.get('http://www.foddy.net/Athletics.html?webgl=true')
 
 		# self.canvas = WebDriverWait(self.browser, 20).until(
-        	# EC.presence_of_element_located((By.ID, "window1")))
-		self.browser.implicitly_wait(10)
-		self.canvas = self.browser.find_element_by_id("window1")
+        	# EC.presence_of_element_located((By.XPATH, "//*[@id=\"window1\"")))
 
-		time.sleep(2)
+
+		self.browser.implicitly_wait(10)
+		self.canvas = WebDriverWait(self.browser, 20).until(
+        	EC.element_to_be_clickable((By.XPATH, "//canvas[@id='window1']")))
+
+		# self.canvas = self.browser.find_element_by_id("window1")
+		# self.canvas = self.browser.find_element_by_id("gameContent")
+		# self.canvas = self.browser.find_element_by_xpath("//*[@id=\"window1\"]")
+
+		time.sleep(1)
+
+		print(self.canvas)
 
 		location = self.canvas.location
 		size = self.canvas.size
+
+		self.actions = ActionChains(self.browser) 
 		
 		self.left = location['x']
 		self.top = location['y']
@@ -68,25 +133,24 @@ class QWOP:
 		self.grayImage = None
 		self.image = None
 
+		self.previousKey = None
+
 	def startGame(self):
+		if (self.previousKey):
+			self.dispatchKeyEvent("keyUp", options[self.previousKey])
+			self.previousKey = None
+
 		if (self.isAtIntro()):
 			# print("Starting game.")
 			self.canvas.click()
 		elif (self.isAtGameLost()):
 			# print("Restarting game.")
-			# self.canvas.send_keys(Keys.SPACE)
-			actions = ActionChains(self.browser) 
-			actions.key_down(Keys.SPACE)
-			actions.perform()
-			actions.reset_actions()
+			self.actions.key_down(Keys.SPACE).perform()
+			self.actions.reset_actions()
 			time.sleep(3)
 		else:
-			# self.canvas.send_keys("r")
-			# self.pressKey("r")
-			actions = ActionChains(self.browser) 
-			actions.key_down("r")
-			actions.perform()
-			actions.reset_actions()
+			self.actions.key_down("r").perform()
+			self.actions.reset_actions()
 			time.sleep(3)
 
 
@@ -109,12 +173,8 @@ class QWOP:
 		return (not self.isAtIntro() and not self.isAtGameLost())
 
 	def pressKey(self, key):
-		print("Pressing key " + key)
-		actions = ActionChains(self.browser) 
-		
-		# actions.reset_action(s)
-		actions.key_down(key)
-		actions.perform()
+		if (key != self.previousKey):
+			self.holdKey(key)
 
 	def grabImage(self):
 		# Convert to PIL
@@ -167,3 +227,21 @@ class QWOP:
 		resizedTemplate = cv2.resize(template, (matchedRegion.shape[1], matchedRegion.shape[0]))
 
 		return (compare_ssim(resizedTemplate, matchedRegion) >= 0.9)
+
+	def dispatchKeyEvent(self, name, options = {}):
+		options["type"] = name
+		body = json.dumps({'cmd': 'Input.dispatchKeyEvent', 'params': options})
+		resource = "/session/%s/chromium/send_command" % self.browser.session_id
+		url = self.browser.command_executor._url + resource
+		self.browser.command_executor._request('POST', url, body)
+
+	def holdKey(self, key):
+		keyOptions = options[key]
+
+		if (self.previousKey):
+			self.dispatchKeyEvent("keyUp", options[self.previousKey])
+
+		self.dispatchKeyEvent("rawKeyDown", keyOptions)
+		self.dispatchKeyEvent("char", keyOptions)
+
+		self.previousKey = key

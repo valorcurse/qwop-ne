@@ -95,7 +95,7 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
                 inputs = qwop.runningTrack().flatten()
                 outputs = phenotype.update(inputs)
                 maxOutput = np.argmax(outputs, axis=0)
-                predicted = Key(maxOutput).name
+                predicted = Key(maxOutput)
                 qwop.pressKey(predicted)
 
                 if (not predicted in differentKeysPressed):
@@ -165,12 +165,15 @@ if __name__ == '__main__':
         pool = Pool(nrOfInstances)
         finishedIndex = multiprocessing.Manager().Value('i', 0)
         for i, phenotype in enumerate(neat.phenotypes):
-            results[i] = pool.apply_async(testOrganism, (phenotype, instances, finishedIndex, len(neat.phenotypes)))
-            # results[i] = pool.apply_async(LogExceptions(testOrganism), (phenotype, instances, finishedIndex, len(neat.phenotypes)))
+            # results[i] = pool.apply_async(testOrganism, (phenotype, instances, finishedIndex, len(neat.phenotypes)))
+            results[i] = pool.apply_async(LogExceptions(testOrganism), (phenotype, instances, finishedIndex, len(neat.phenotypes)))
         pool.close()
         pool.join()
 
         fitnessScores = [result.get() for func, result in results.items()]
+
+        # testOrganism(neat.phenotypes[0], instances, finishedIndex, len(neat.phenotypes))
+        # fitnessScores = [0]        
 
         print("")
         print("-----------------------------------------------------")
