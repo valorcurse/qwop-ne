@@ -80,38 +80,24 @@ options = {
 class QWOP:
 
 	def __init__(self):
-		# options = Options()
-		# options.add_argument('--headless')
-		# options.add_argument('--disable-gpu')
-		
-		# options = Options()
-		# options.add_argument('--disable-infobars')
-		# options.binary_location = r'/usr/bin/chromium-browser'
-		# options.add_argument('window-size=640x480')
-
 		capa = DesiredCapabilities.CHROME;
 		capa['chromeOptions'] = {
-		  'binary': r'/usr/bin/chromium-browser',
-		  'args': ["--disable-infobars"]
+			'binary': r'/usr/bin/chromium-browser',
+			'args': [
+		  		"--disable-infobars",
+				"--headless",
+				"--mute-audio" 
+			]
 		}
 
 		# self.browser = webdriver.Firefox()
-		# self.browser = webdriver.Chrome(chrome_options=options)
 		self.browser = webdriver.Chrome(desired_capabilities=capa)
 		self.browser.set_window_size(640, 480)
 		self.browser.get('http://www.foddy.net/Athletics.html?webgl=true')
 
-		# self.canvas = WebDriverWait(self.browser, 20).until(
-        	# EC.presence_of_element_located((By.XPATH, "//*[@id=\"window1\"")))
-
-
 		self.browser.implicitly_wait(10)
 		self.canvas = WebDriverWait(self.browser, 20).until(
         	EC.element_to_be_clickable((By.XPATH, "//canvas[@id='window1']")))
-
-		# self.canvas = self.browser.find_element_by_id("window1")
-		# self.canvas = self.browser.find_element_by_id("gameContent")
-		# self.canvas = self.browser.find_element_by_xpath("//*[@id=\"window1\"]")
 
 		time.sleep(1)
 

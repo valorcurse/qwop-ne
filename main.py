@@ -10,9 +10,14 @@ global innovations
 import torch
 from torch.autograd import Variable
 
-import multiprocessing
-from multiprocessing import Pool, Queue, Value
-import multiprocessing.managers as managers
+# import multiprocessing
+# from multiprocessing import Pool, Queue, Value
+# import multiprocessing.managers as managers
+
+import multiprocess as multiprocessing
+from multiprocess.pool import Pool
+from multiprocess import Queue, Value
+import multiprocess.managers as managers
 
 from matplotlib import pyplot
 
@@ -22,7 +27,9 @@ import time
 
 import os
 import sys
-import pickle
+# import pickle
+import _pickle as pickle
+# import dill
 import random
 import cProfile
 import argparse
@@ -32,24 +39,24 @@ import traceback
 def error(msg, *args):
     return multiprocessing.get_logger().error(msg, *args)
 
-class LogExceptions(object):
-    def __init__(self, callable):
-        self.__callable = callable
+# class LogExceptions(object):
+#     def __init__(self, callable):
+#         self.__callable = callable
 
-    def __call__(self, *args, **kwargs):
-        try:
-            result = self.__callable(*args, **kwargs)
+#     def __call__(self, *args, **kwargs):
+#         try:
+#             result = self.__callable(*args, **kwargs)
 
-        except Exception as e:
-            # Here we add some debugging help. If multiprocessing's
-            # debugging is on, it will arrange to log the traceback
-            error(traceback.format_exc())
-            # Re-raise the original exception so the Pool worker can
-            # clean up
-            raise
+#         except Exception as e:
+#             # Here we add some debugging help. If multiprocessing's
+#             # debugging is on, it will arrange to log the traceback
+#             error(traceback.format_exc())
+#             # Re-raise the original exception so the Pool worker can
+#             # clean up
+#             raise
 
-        # It was fine, give a normal answer
-        return result
+#         # It was fine, give a normal answer
+#         return result
 
 def profiler(phenotype):
     cProfile.runctx('testOrganism(phenotype)', globals(), locals(), 'prof.prof')
@@ -130,13 +137,13 @@ if __name__ == '__main__':
         os.makedirs(saveDirectory)
 
     sys.setrecursionlimit(10000)
-    multiprocessing.set_start_method('spawn')
-    multiprocessing.log_to_stderr()
+    # multiprocessing.set_start_method('spawn')
+    # multiprocessing.log_to_stderr()
     QueueManager.register("QWOP", QWOP)
     queueManager = QueueManager()
     queueManager.start()
 
-    nrOfInstances = 1
+    nrOfInstances = 4
     nrOfOrgamisms = 25
 
     instances = multiprocessing.Manager().Queue()
@@ -165,15 +172,15 @@ if __name__ == '__main__':
         pool = Pool(nrOfInstances)
         finishedIndex = multiprocessing.Manager().Value('i', 0)
         for i, phenotype in enumerate(neat.phenotypes):
-            # results[i] = pool.apply_async(testOrganism, (phenotype, instances, finishedIndex, len(neat.phenotypes)))
-            results[i] = pool.apply_async(LogExceptions(testOrganism), (phenotype, instances, finishedIndex, len(neat.phenotypes)))
+            results[i] = pool.apply_async(testOrganism, (phenotype, instances, finishedIndex, len(neat.phenotypes)))
+            # results[i] = pool.apply_async(LogExceptions(testOrganism), (phenotype, instances, finishedIndex, len(neat.phenotypes)))
         pool.close()
         pool.join()
 
         fitnessScores = [result.get() for func, result in results.items()]
 
         # testOrganism(neat.phenotypes[0], instances, finishedIndex, len(neat.phenotypes))
-        # fitnessScores = [0]        
+        # fitnessScores = [0] * len(neat.phenotypes)
 
         print("")
         print("-----------------------------------------------------")
@@ -181,10 +188,13 @@ if __name__ == '__main__':
         print("Running epoch")
         neat.phenotypes = neat.epoch(fitnessScores)
         print("Generation: " + str(neat.generation))
-        print("Number of innovations: " + str(len(innovations.listOfInnovations)))
-        print("Number of genomes: " + str(len(neat.genomes)))
+        # print("Number of innovations: " + str(len(innovations.listOfInnovations)))
+        # print("Number of genomes: " + str(len(neat.genomes)))
         print("Number of species: " + str(len(neat.species)))
-        print("Number of phenotypes: " + str(len(neat.phenotypes)))
+        print("ID", "\t", "age", "\t", "fitness", "\t", "adj. fitness", "\t", "stag")
+        for s in neat.species:
+            print(s.ID, "\t", s.age, "\t", "{:1.4f}".format(max([m.fitness for m in s.members])), 
+                "\t", "{:1.4f}".format(s.adjustedFitness), "\t", s.generationsWithoutImprovement)
         
-        with open(saveDirectory + "/" + saveFile, 'wb') as output:
-            pickle.dump([neat, innovations], output, pickle.HIGHEST_PROTOCOL)
+    # with open(saveDirectory + "/" + saveFile, 'wb') as output:
+        # pickle.dump([neat, innovations], output)
