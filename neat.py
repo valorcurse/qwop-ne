@@ -70,7 +70,7 @@ class NEAT:
     species = []
     speciesNumber = 0
 
-    populationSize = 150
+    populationSize = 25
 
     generation = 0
 

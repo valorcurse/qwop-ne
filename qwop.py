@@ -11,6 +11,10 @@ from selenium.webdriver.common.by import By
 # from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from selenium.webdriver.common.proxy import *
+
+from mitmproxy import controller
+from mitmproxy import proxy
 
 from PIL import Image
 from base64 import b64decode
@@ -80,20 +84,43 @@ options = {
 class QWOP:
 
 	def __init__(self):
+		proxy_con = "127.0.0.1:8080"
 		capa = DesiredCapabilities.CHROME;
 		capa['chromeOptions'] = {
 			'binary': r'/usr/bin/chromium-browser',
 			'args': [
 		  		"--disable-infobars",
 				"--headless",
-				"--mute-audio" 
+				# "--disable-extensions-except=/path/to/extension/",
+    			# "--load-extension=/path/to/extension/",
+				"--mute-audio",
+				"--disable-web-security" 
 			]
 		}
 
-		# self.browser = webdriver.Firefox()
+		capa['proxy'] = {
+			'proxyType': "MANUAL",
+			'httpProxy': proxy_con,
+			'ftpProxy': proxy_con,
+			'sslProxy': proxy_con,
+			'noProxy': ''
+		}
+
+		# server = proxy.ProxyServer(config, 8088)
+		# reporter = HttpMitmReporter(server)
+		# mitm_proxy = Process(target=reporter.run)
+		# mitm_proxy.start()
+		
+		# my_proxy = Proxy({'proxyType': ProxyType.MANUAL,
+		# 	'httpProxy': proxy_con,
+		# 	'ftpProxy': proxy_con,
+		# 	'sslProxy': proxy_con,
+		# 	'noProxy': ''})
+
 		self.browser = webdriver.Chrome(desired_capabilities=capa)
 		self.browser.set_window_size(640, 480)
 		self.browser.get('http://www.foddy.net/Athletics.html?webgl=true')
+
 
 		self.browser.implicitly_wait(10)
 		self.canvas = WebDriverWait(self.browser, 20).until(
@@ -112,6 +139,8 @@ class QWOP:
 		self.top = location['y']
 		self.right = location['x'] + size['width']
 		self.bottom = location['y'] + size['height']
+		self.width = size['width']
+		self.height = size['height']
 
 		self.gameIntroTemplate = cv2.imread('intro.png', 0)
 		self.gameLostTemplate = cv2.imread('lost.png', 0)
@@ -120,6 +149,12 @@ class QWOP:
 		self.image = None
 
 		self.previousKey = None
+
+		self.screenshotScript = \
+			"var gl = arguments[0].getContext('webgl', {preserveDrawingBuffer: true});" \
+			"var pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);" \
+			"gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);" \
+			"return pixels;"
 
 	def startGame(self):
 		if (self.previousKey):
@@ -163,20 +198,14 @@ class QWOP:
 			self.holdKey(key)
 
 	def grabImage(self):
-		# Convert to PIL
-		base64Img = self.browser.get_screenshot_as_base64()
-		img = io.BytesIO(base64.b64decode(base64Img))
-		im = Image.open(img)
 
-		# Crop image to element
-		im = im.crop((self.left, self.top, self.right, self.bottom))
+		testImg = np.array(self.browser.execute_script(self.screenshotScript, self.canvas), dtype=np.uint8).reshape(self.height, self.width, 4)
+		testImg = cv2.flip(testImg, 0)
 		
-		# Converto to mat
-		self.image = cv2.cvtColor(np.array(im), cv2.COLOR_RGB2BGR)
-		self.grayImage = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+		self.grayImage = cv2.cvtColor(testImg, cv2.COLOR_RGB2GRAY)
 
 	def score(self):
-		scoreImage = self.image[20:50, 200:400]
+		scoreImage = self.grayImage[20:50, 200:400]
 
 		with PyTessBaseAPI() as tesseract:
 			tesseract.SetImage(Image.fromarray(scoreImage))
@@ -191,12 +220,14 @@ class QWOP:
 	def runningTrack(self):
 		# return self.image[75:-15, :]
 		# return self.image[75:-15, 100:-275]
-		grey = cv2.cvtColor(self.image[75:-15, 100:-200], cv2.COLOR_BGR2GRAY)
-		grey = cv2.resize(grey, (0,0), fx=0.10, fy=0.10)
+		# grey = cv2.cvtColor(self.image[75:-15, 100:-200], cv2.COLOR_BGR2GRAY)
+		
+		grey = cv2.resize(self.grayImage[75:-15, 100:-200], (0,0), fx=0.10, fy=0.10)
+		
 		# print("size:", grey.size)
 		# cv2.imshow("runningTrack", grey)
 		# cv2.waitKey()
-		return grey
+		return self.grayImage
 
 	def matchTemplate(self, image, template):
 		res = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
