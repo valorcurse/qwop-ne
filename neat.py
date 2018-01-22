@@ -259,8 +259,9 @@ class NEAT:
                     if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
                         baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
 
-                    baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
-                                 self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
+                    for i in range(5):
+                        baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
+                                     self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
 
                     baby.mutateWeights(self.mutationRate, self.probabilityOfWeightReplaced,
                                        self.maxWeightPerturbation)

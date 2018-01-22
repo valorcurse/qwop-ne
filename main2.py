@@ -37,7 +37,7 @@ if __name__ == '__main__':
         if (gameStarted and not qwop.isAtIntro()):
             if (qwop.isPlayable()):
                 key = random.choice(keys)
-                # qwop.pressKey(key)
+                qwop.pressKey(key)
             else:
                 running = False
 

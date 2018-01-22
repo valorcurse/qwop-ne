@@ -199,7 +199,8 @@ class QWOP:
 
 	def grabImage(self):
 
-		testImg = np.array(self.browser.execute_script(self.screenshotScript, self.canvas), dtype=np.uint8).reshape(self.height, self.width, 4)
+		# testImg = np.array(self.browser.execute_script(self.screenshotScript, self.canvas), dtype=np.uint8).reshape(self.height, self.width, 4)
+		testImg = np.array(self.browser.execute_script("return getCanvasPixels()"), dtype=np.uint8).reshape(self.height, self.width, 4)
 		testImg = cv2.flip(testImg, 0)
 		
 		self.grayImage = cv2.cvtColor(testImg, cv2.COLOR_RGB2GRAY)

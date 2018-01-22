@@ -144,7 +144,7 @@ if __name__ == '__main__':
     queueManager.start()
 
     nrOfInstances = 4
-    nrOfOrgamisms = 25
+    nrOfOrgamisms = 150
 
     instances = multiprocessing.Manager().Queue()
     for i in range(nrOfInstances):
