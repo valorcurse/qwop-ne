@@ -28,7 +28,6 @@ if __name__ == '__main__':
     running = True
     gameStarted = False
     while (running):
-        qwop.grabImage()
 
         if (not gameStarted and qwop.isAtIntro()):
             gameStarted = True
@@ -42,7 +41,7 @@ if __name__ == '__main__':
                 running = False
 
         
-        cv2.imshow("image", qwop.runningTrack())
+        cv2.imshow("image", qwop.grayImage)
         cv2.waitKey(1)
 
     qwop.stop()

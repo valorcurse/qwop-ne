@@ -6,6 +6,9 @@ import base64
 import pychrome
 import threading
 import cv2
+from PIL import Image
+import io
+import numpy as np
 
 def close_all_tabs(browser):
     if len(browser.list_tab()) == 0:
@@ -23,49 +26,76 @@ def close_all_tabs(browser):
     assert len(browser.list_tab()) == 0
 
 
-def main():
-    browser = pychrome.Browser()
+class Streamcast:
+    def __init__(self):
+        self.browser = pychrome.Browser()
 
-    # close_all_tabs(browser)
+        # close_all_tabs(browser)
 
-    # tab = browser.new_tab()
-    tabs = browser.list_tab()
+        # tab = browser.new_tab()
+        tabs = self.browser.list_tab()
 
-    if not tabs:
-        tab = browser.new_tab()
+        if not tabs:
+            self.tab = self.browser.new_tab()
 
-    else:
-        tab = tabs[0]
+        else:
+            self.tab = tabs[0]
 
-    tab.debug = True
+        self.tab.debug = True
 
-    tab.start()
-    tab.Page.enable()
-    # tab.Page.navigate(url="http://www.foddy.net/Athletics.html")
-    tab.Page.navigate(url="http://chromium.org")
-    
-    screen_lock = threading.Lock()
-    with screen_lock:
-        try:
-            # viewport = tab.Viewport
-            # viewport.x = 5
-            # viewport = tab.viewport(x=50, y=50, width=200, height=200, scale=1)
-            # [5, 5, 200, 200, 1]
-            tab.Page.getLayoutMetrics()
-            data = tab.Page.captureScreenshot(params="clip={viewport:{x: 10, y: 10, width: 200, height: 200}}")
-            # data = tab.Page.captureScreenshot()
-            # tab.call_method("Page.captureScreenshot", clip="{}")
-            # print(data)
+        self.tab.start()
+        self.tab.Page.enable()
+        self.tab.Page.navigate(url="http://www.foddy.net/Athletics.html?webgl=true")
+        # self.tab.Page.navigate(url="http://chromium.org")
+        
+        # self.tab.call_method("Page.startScreencast", format="jpeg", quality=50, maxWidth=640, maxHeight=400, everyNthFrame=50)
+        # self.tab.Page.screencastFrame = self.request_will_be_sent
 
-            with open("%s.png" % time.time(), "wb") as fd:
-                fd.write(base64.b64decode(data['data']))
-        finally:
-            # tab.stop()
-            pass
-    
-    # browser.close_tab(tab)
+        while True:
+            # self.pressKey()
+            # print("clicking Mouse")
+            self.click()
+            time.sleep(1)
+        
+        # browser.close_tab(tab)
+
+    def request_will_be_sent(self, **kwargs):
+        imgData = base64.b64decode(kwargs.get('data'))
+        img = cv2.cvtColor(np.array(Image.open(io.BytesIO(imgData))), cv2.COLOR_BGR2RGB)
+        cv2.imshow("QWOP", img)
+        cv2.waitKey(32)
+
+        self.tab.Page.screencastFrameAck(sessionId=kwargs.get('sessionId')) 
+        # self.click()
+
+    def pressKey(self):
+        self.tab.Input.dispatchKeyEvent(
+            type="rawKeyDown", 
+            key="q", 
+            code="KeyQ", 
+            text="q", 
+            unmodifiegText="q",
+            nativeVirtualKeyCode=ord("Q"),
+            windowsVirtualKeyCode=ord("Q"))
+
+    def click(self):
+        self.tab.Input.dispatchMouseEvent(
+            type="mousePressed",
+            button="left",
+            x=0,
+            y=0,
+            timestamp=int(time.time()),
+            clickCount=10)
+
+        self.tab.Input.dispatchMouseEvent(
+            type="mouseReleased",
+            button="left",
+            x=0,
+            y=0,
+            timestamp=int(time.time()),
+            clickCount=1)
 
 
 
 if __name__ == '__main__':
-    main()
+    Streamcast()
