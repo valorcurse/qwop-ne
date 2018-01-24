@@ -39,24 +39,24 @@ import traceback
 def error(msg, *args):
     return multiprocessing.get_logger().error(msg, *args)
 
-# class LogExceptions(object):
-#     def __init__(self, callable):
-#         self.__callable = callable
+class LogExceptions(object):
+    def __init__(self, callable):
+        self.__callable = callable
 
-#     def __call__(self, *args, **kwargs):
-#         try:
-#             result = self.__callable(*args, **kwargs)
+    def __call__(self, *args, **kwargs):
+        try:
+            result = self.__callable(*args, **kwargs)
 
-#         except Exception as e:
-#             # Here we add some debugging help. If multiprocessing's
-#             # debugging is on, it will arrange to log the traceback
-#             error(traceback.format_exc())
-#             # Re-raise the original exception so the Pool worker can
-#             # clean up
-#             raise
+        except Exception as e:
+            # Here we add some debugging help. If multiprocessing's
+            # debugging is on, it will arrange to log the traceback
+            error(traceback.format_exc())
+            # Re-raise the original exception so the Pool worker can
+            # clean up
+            raise
 
-#         # It was fine, give a normal answer
-#         return result
+        # It was fine, give a normal answer
+        return result
 
 def profiler(phenotype):
     cProfile.runctx('testOrganism(phenotype)', globals(), locals(), 'prof.prof')
@@ -76,10 +76,10 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
     differentKeysPressed = []
     startTime = None
     while (running):
-        qwop.grabImage()
+        # qwop.grabImage()
 
-        # cv2.imshow("image", qwop.runningTrack())
-        # cv2.waitKey(16)
+        cv2.imshow("image", qwop.runningTrack())
+        cv2.waitKey(1)
         
         if (not gameStarted):
             gameStarted = True
@@ -103,7 +103,8 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
                 outputs = phenotype.update(inputs)
                 maxOutput = np.argmax(outputs, axis=0)
                 predicted = Key(maxOutput)
-                qwop.pressKey(predicted)
+                # qwop.pressKey(predicted)
+                qwop.holdKey(predicted)
 
                 if (not predicted in differentKeysPressed):
                     differentKeysPressed.append(predicted)
@@ -172,8 +173,8 @@ if __name__ == '__main__':
         pool = Pool(nrOfInstances)
         finishedIndex = multiprocessing.Manager().Value('i', 0)
         for i, phenotype in enumerate(neat.phenotypes):
-            results[i] = pool.apply_async(testOrganism, (phenotype, instances, finishedIndex, len(neat.phenotypes)))
-            # results[i] = pool.apply_async(LogExceptions(testOrganism), (phenotype, instances, finishedIndex, len(neat.phenotypes)))
+            # results[i] = pool.apply_async(testOrganism, (phenotype, instances, finishedIndex, len(neat.phenotypes)))
+            results[i] = pool.apply_async(LogExceptions(testOrganism), (phenotype, instances, finishedIndex, len(neat.phenotypes)))
         pool.close()
         pool.join()
 

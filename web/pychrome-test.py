@@ -53,9 +53,9 @@ class Streamcast:
 
         while True:
             # self.pressKey()
-            # print("clicking Mouse")
+            time.sleep(5)
+            print("clicking Mouse")
             self.click()
-            time.sleep(1)
         
         # browser.close_tab(tab)
 
@@ -85,7 +85,7 @@ class Streamcast:
             x=0,
             y=0,
             timestamp=int(time.time()),
-            clickCount=10)
+            clickCount=1)
 
         self.tab.Input.dispatchMouseEvent(
             type="mouseReleased",

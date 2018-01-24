@@ -17,12 +17,16 @@ import random
 from random import randint
 
 if __name__ == '__main__':
-    print("Creating NEAT object")
+    # print(cv2.getBuildInformation())
     
     qwop = QWOP()
 
     # cv2.imshow("image", qwop.runningTrack())
     # cv2.waitKey()
+
+    previousFitnessScore = 0
+    fitnessScore = 0
+    startTime = None
 
     keys = [Key.Q, Key.W, Key.O, Key.P]
     running = True
@@ -33,14 +37,34 @@ if __name__ == '__main__':
             gameStarted = True
             qwop.startGame()
         
+        if (gameStarted and qwop.isAtGameLost()):
+            gameStarted = True
+            qwop.startGame()
+
         if (gameStarted and not qwop.isAtIntro()):
             if (qwop.isPlayable()):
-                key = random.choice(keys)
-                qwop.pressKey(key)
-            else:
-                running = False
+                # key = random.choice(keys)
+                key = Key.W
+                qwop.holdKey(key)
+            # else:
+                # gameStarted = False
+                # running = False
+            previousFitnessScore = fitnessScore
+            fitnessScore = qwop.score()
+
+            if fitnessScore == previousFitnessScore:
+                if startTime == None:
+                    startTime = time.time()
+                else:
+                    # print("\rTime standing still: " + str(time.time() - startTime), end='')
+                    if (time.time() - startTime) > 2.0:
+                        running = False
+                        # qwop.pressKey(Key.R)
+                        # qwop.startGame()
+                        startTime = None
 
         
+        # print(qwop.score())
         cv2.imshow("image", qwop.grayImage)
         cv2.waitKey(1)
 
