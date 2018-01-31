@@ -35,6 +35,8 @@ import cProfile
 import argparse
 import traceback
 
+windowPositions = [(0, 0), (0, 600), (400, 0), (400, 600), (800, 0)]
+
 # Shortcut to multiprocessing's logger
 def error(msg, *args):
     return multiprocessing.get_logger().error(msg, *args)
@@ -80,7 +82,10 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
 
         # cv2.imshow("image", qwop.runningTrack())
         # if (qwop.grayImage is not None):
-        cv2.imshow("image", qwop.getImage())
+        # with image_lock: 
+        cv2.imshow(str(qwop.getNumber()), qwop.getImage())
+        pos = windowPositions[qwop.getNumber()]
+        cv2.moveWindow(str(qwop.getNumber()), pos[0], pos[1])
         cv2.waitKey(1)
         
         if (not gameStarted):
@@ -91,12 +96,13 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
                 # previousFitnessScore = fitnessScore
                 # fitnessScore = qwop.score()
 
-            if qwop.isImageSimilar():
+            # if qwop.isImageSimilar():
+            if qwop.isScoreSimilar():
                 if startTime == None:
                     startTime = time.time()
                 else:
                     # print("\rTime standing still: " + str(time.time() - startTime), end='')
-                    if (time.time() - startTime) > 2.0:
+                    if (time.time() - startTime) > 3.0:
                         fitnessScore = qwop.score()
                         running = False
             else:
@@ -153,8 +159,9 @@ if __name__ == '__main__':
 
     instances = multiprocessing.Manager().Queue()
     for i in range(nrOfInstances):
-        newQWOP = queueManager.QWOP()
+        newQWOP = queueManager.QWOP(i)
         print(newQWOP)
+        # cv2.namedWindow(str(newQWOP))
         instances.put(newQWOP)
 
     neat = None
@@ -179,17 +186,16 @@ if __name__ == '__main__':
         pool = Pool(nrOfInstances)
         finishedIndex = multiprocessing.Manager().Value('i', 0)
         for i, phenotype in enumerate(neat.phenotypes):
-            results[i] = pool.apply_async(testOrganism, (phenotype, instances, finishedIndex, len(neat.phenotypes)))
-        #     results[i] = pool.apply_async(LogExceptions(testOrganism), (phenotype, instances, finishedIndex, len(neat.phenotypes)))
+            # results[i] = pool.apply_async(testOrganism, (phenotype, instances, finishedIndex, len(neat.phenotypes)))
+            results[i] = pool.apply_async(LogExceptions(testOrganism), (phenotype, instances, finishedIndex, len(neat.phenotypes)))
         pool.close()
         pool.join()
 
-        # fitnessScores = [result.get() for func, result in results.items()]
+        fitnessScores = [result.get() for func, result in results.items()]
 
-        for i, phenotype in enumerate(neat.phenotypes):
-            fitnessScores.append(testOrganism(neat.phenotypes[0], instances, finishedIndex, len(neat.phenotypes)))
+        # for i, phenotype in enumerate(neat.phenotypes):
+            # fitnessScores.append(testOrganism(neat.phenotypes[0], instances, finishedIndex, len(neat.phenotypes)))
         # fitnessScores = [0] * len(neat.phenotypes)
-        stillRunning = False
 
         print("")
         print("-----------------------------------------------------")
@@ -205,5 +211,5 @@ if __name__ == '__main__':
             print(s.ID, "\t", s.age, "\t", "{:1.4f}".format(max([m.fitness for m in s.members])), 
                 "\t", "{:1.4f}".format(s.adjustedFitness), "\t", s.generationsWithoutImprovement)
         
-    # with open(saveDirectory + "/" + saveFile, 'wb') as output:
-        # pickle.dump([neat, innovations], output)
+    with open(saveDirectory + "/" + saveFile, 'wb') as output:
+        pickle.dump([neat, innovations], output)

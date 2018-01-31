@@ -87,7 +87,9 @@ options = {
 
 class QWOP:
 
-	def __init__(self):
+	def __init__(self, index):
+		self.number = index
+
 		self.browser = pychrome.Browser()
 
 		tabs = self.browser.list_tab()
@@ -115,8 +117,10 @@ class QWOP:
 
 		self.grayImage = None
 		self.image = None
+		self.scoreImage = None
 		
 		self.imageIsSimilar = False
+		self.scoreIsSimilar = False
 
 		self.previousKey = None
 
@@ -134,6 +138,11 @@ class QWOP:
 			self.imageIsSimilar = compare_ssim(self.grayImage, newImg) > 0.95
 		
 		self.grayImage = newImg
+
+		newScoreImg = self.grayImage[15:30, 140:275]
+		if (not self.scoreImage is None):
+			self.scoreIsSimilar = compare_ssim(self.scoreImage, newScoreImg) > 0.95
+		self.scoreImage = self.grayImage[15:30, 140:275]
 
 		self.tab.Page.screencastFrameAck(sessionId=kwargs.get('sessionId')) 
 
@@ -157,6 +166,9 @@ class QWOP:
 	def stop(self):
 		# self.browser.quit()
 		pass
+
+	def getNumber(self):
+		return self.number
 
 	def getImage(self):
 		return self.grayImage
@@ -187,11 +199,12 @@ class QWOP:
 		if (key != self.previousKey):
 			self.sendKeyEvent(key, "keyDown")
 
-	def score(self):
-		scoreImage = self.grayImage[15:30, 140:275]
+	def isScoreSimilar(self):
+		return self.scoreIsSimilar
 
+	def score(self):
 		with PyTessBaseAPI() as tesseract:
-			tesseract.SetImage(Image.fromarray(scoreImage))
+			tesseract.SetImage(Image.fromarray(self.scoreImage))
 			score = re.search('((-)?\d+(\.\d+)?).*', tesseract.GetUTF8Text())
 			# print(tesseract.GetUTF8Text(), score)
 			if (score == None):
