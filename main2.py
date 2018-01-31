@@ -24,49 +24,45 @@ if __name__ == '__main__':
     # cv2.imshow("image", qwop.runningTrack())
     # cv2.waitKey()
 
-    previousFitnessScore = 0
     fitnessScore = 0
-    startTime = None
+
+    while (not qwop.isAtIntro()):
+        pass
 
     keys = [Key.Q, Key.W, Key.O, Key.P]
-    running = True
-    gameStarted = False
-    while (running):
-
-        if (not gameStarted and qwop.isAtIntro()):
-            gameStarted = True
-            qwop.startGame()
+    for i in range(25):
+        running = True
+        gameStarted = False
+        startTime = None
         
-        if (gameStarted and qwop.isAtGameLost()):
-            gameStarted = True
-            qwop.startGame()
+        print("\rRun nr: " + str(i), end='')
 
-        if (gameStarted and not qwop.isAtIntro()):
-            if (qwop.isPlayable()):
-                # key = random.choice(keys)
-                key = Key.W
-                qwop.holdKey(key)
-            # else:
-                # gameStarted = False
-                # running = False
-            previousFitnessScore = fitnessScore
-            fitnessScore = qwop.score()
-
-            if fitnessScore == previousFitnessScore:
-                if startTime == None:
-                    startTime = time.time()
+        while (running):
+        
+            if (not gameStarted):
+                # if (qwop.isAtIntro()):
+                gameStarted = True
+                qwop.startGame()
+            else:
+                if qwop.isImageSimilar():
+                    if startTime == None:
+                        startTime = time.time()
+                    else:
+                        # print("\rTime standing still: " + str(time.time() - startTime), end='')
+                        if (time.time() - startTime) > 2.0:
+                            fitnessScore = qwop.score()
+                            running = False
                 else:
-                    # print("\rTime standing still: " + str(time.time() - startTime), end='')
-                    if (time.time() - startTime) > 2.0:
-                        running = False
-                        # qwop.pressKey(Key.R)
-                        # qwop.startGame()
-                        startTime = None
+                    startTime = None
 
-        
-        # print(qwop.score())
-        cv2.imshow("image", qwop.grayImage)
-        cv2.waitKey(1)
+                key = random.choice(keys)
+                # key = Key.W
+                qwop.holdKey(key)
+            
+            # print(qwop.score())
+            # cv2.imshow("image", qwop.grayImage)
+            # cv2.imshow("image", qwop.runningTrack())
+            # cv2.waitKey(1)
 
     qwop.stop()
     cv2.destroyAllWindows()

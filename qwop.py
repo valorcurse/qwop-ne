@@ -115,6 +115,8 @@ class QWOP:
 
 		self.grayImage = None
 		self.image = None
+		
+		self.imageIsSimilar = False
 
 		self.previousKey = None
 
@@ -126,7 +128,12 @@ class QWOP:
 		img = cv2.cvtColor(np.array(Image.open(io.BytesIO(imgData))), cv2.COLOR_BGR2RGB)
 
 		self.image = img[62:-73, 50:-60]
-		self.grayImage = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
+
+		newImg = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
+		if (not self.grayImage is None):
+			self.imageIsSimilar = compare_ssim(self.grayImage, newImg) > 0.95
+		
+		self.grayImage = newImg
 
 		self.tab.Page.screencastFrameAck(sessionId=kwargs.get('sessionId')) 
 
@@ -141,15 +148,21 @@ class QWOP:
 		elif (self.isAtGameLost()):
 			# print("Restarting game.")
 			self.pressKey(Key.SPACE)
-			time.sleep(3)
+			# time.sleep(3)
 		else:
 			self.pressKey(Key.R)
-			time.sleep(3)
+			# time.sleep(3)
 
 
 	def stop(self):
 		# self.browser.quit()
 		pass
+
+	def getImage(self):
+		return self.grayImage
+
+	def isImageSimilar(self):
+		return self.imageIsSimilar
 
 	def isAtIntro(self):
 		if (self.grayImage is None):
@@ -167,7 +180,6 @@ class QWOP:
 		return (not self.isAtIntro() and not self.isAtGameLost())
 
 	def pressKey(self, key):
-		# if (key != self.previousKey):
 		self.sendKeyEvent(key, "keyDown")
 		self.sendKeyEvent(key, "keyUp")
 
@@ -190,8 +202,8 @@ class QWOP:
 
 	def runningTrack(self):
 		resizedGrey = self.grayImage[50:-15, :]
-		grey = cv2.resize(resizedGrey, (0,0), fx=0.50, fy=0.50)
-		
+		grey = cv2.resize(resizedGrey, (0,0), fx=0.15, fy=0.15)
+		# print(grey.size)
 		return grey
 
 	def matchTemplate(self, image, template):

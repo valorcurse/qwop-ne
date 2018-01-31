@@ -78,38 +78,42 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
     while (running):
         # qwop.grabImage()
 
-        cv2.imshow("image", qwop.runningTrack())
+        # cv2.imshow("image", qwop.runningTrack())
+        # if (qwop.grayImage is not None):
+        cv2.imshow("image", qwop.getImage())
         cv2.waitKey(1)
         
         if (not gameStarted):
             gameStarted = True
             qwop.startGame()
         else:
-            if (qwop.isPlayable()):
-                previousFitnessScore = fitnessScore
-                fitnessScore = qwop.score()
+            # if (qwop.isPlayable()):
+                # previousFitnessScore = fitnessScore
+                # fitnessScore = qwop.score()
 
-                if fitnessScore == previousFitnessScore:
-                    if startTime == None:
-                        startTime = time.time()
-                    else:
-                        # print("\rTime standing still: " + str(time.time() - startTime), end='')
-                        if (time.time() - startTime) > 2.0:
-                            running = False
+            if qwop.isImageSimilar():
+                if startTime == None:
+                    startTime = time.time()
                 else:
-                    startTime = None
-
-                inputs = qwop.runningTrack().flatten()
-                outputs = phenotype.update(inputs)
-                maxOutput = np.argmax(outputs, axis=0)
-                predicted = Key(maxOutput)
-                # qwop.pressKey(predicted)
-                qwop.holdKey(predicted)
-
-                if (not predicted in differentKeysPressed):
-                    differentKeysPressed.append(predicted)
+                    # print("\rTime standing still: " + str(time.time() - startTime), end='')
+                    if (time.time() - startTime) > 2.0:
+                        fitnessScore = qwop.score()
+                        running = False
             else:
-                running = False
+                startTime = None
+
+            inputs = qwop.runningTrack().flatten()
+            outputs = phenotype.update(inputs)
+            maxOutput = np.argmax(outputs, axis=0)
+            predicted = Key(maxOutput)
+            # qwop.pressKey(predicted)
+            qwop.holdKey(predicted)
+
+            if (not predicted in differentKeysPressed):
+                differentKeysPressed.append(predicted)
+            # else:
+                # fitnessScore = qwop.score()
+                # running = False
 
     finishedIndex.value += 1
     print("\rFinished phenotype ("+ str(finishedIndex.value) +"/"+ str(nrOfPhenotypes) +")", end='')
@@ -144,8 +148,8 @@ if __name__ == '__main__':
     queueManager = QueueManager()
     queueManager.start()
 
-    nrOfInstances = 4
-    nrOfOrgamisms = 150
+    nrOfInstances = 5
+    nrOfOrgamisms = 25
 
     instances = multiprocessing.Manager().Queue()
     for i in range(nrOfInstances):
@@ -160,11 +164,13 @@ if __name__ == '__main__':
             neat, innovations = pickle.load(load)
     else:
         print("Creating NEAT object")
-        neat = NEAT(nrOfOrgamisms, 1054, 4)
+        # neat = NEAT(nrOfOrgamisms, 1054, 4)
+        neat = NEAT(nrOfOrgamisms, 1890, 4)
 
     pyplot.show(block=False)
     
-    while True:
+    stillRunning = True
+    while stillRunning:
         results = {}
 
         # randomPhenotype = random.choice(neat.phenotypes)
@@ -173,15 +179,17 @@ if __name__ == '__main__':
         pool = Pool(nrOfInstances)
         finishedIndex = multiprocessing.Manager().Value('i', 0)
         for i, phenotype in enumerate(neat.phenotypes):
-            # results[i] = pool.apply_async(testOrganism, (phenotype, instances, finishedIndex, len(neat.phenotypes)))
-            results[i] = pool.apply_async(LogExceptions(testOrganism), (phenotype, instances, finishedIndex, len(neat.phenotypes)))
+            results[i] = pool.apply_async(testOrganism, (phenotype, instances, finishedIndex, len(neat.phenotypes)))
+        #     results[i] = pool.apply_async(LogExceptions(testOrganism), (phenotype, instances, finishedIndex, len(neat.phenotypes)))
         pool.close()
         pool.join()
 
-        fitnessScores = [result.get() for func, result in results.items()]
+        # fitnessScores = [result.get() for func, result in results.items()]
 
-        # testOrganism(neat.phenotypes[0], instances, finishedIndex, len(neat.phenotypes))
+        for i, phenotype in enumerate(neat.phenotypes):
+            fitnessScores.append(testOrganism(neat.phenotypes[0], instances, finishedIndex, len(neat.phenotypes)))
         # fitnessScores = [0] * len(neat.phenotypes)
+        stillRunning = False
 
         print("")
         print("-----------------------------------------------------")

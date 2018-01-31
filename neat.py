@@ -16,7 +16,7 @@ from genes import innovations
 global innovations
 
 class CSpecies:
-    numGensAllowNoImprovement = 20
+    numGensAllowNoImprovement = 60
 
     def __init__(self, speciesID):
         self.ID = speciesID
