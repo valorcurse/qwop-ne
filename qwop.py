@@ -106,7 +106,7 @@ class QWOP:
 		self.tab.Page.navigate(url="http://www.foddy.net/Athletics.html?webgl=true")
 		
 		self.tab.call_method("Page.startScreencast", 
-			format="png", quality=25, everyNthFrame=1,
+			format="png", quality=25, everyNthFrame=5,
 			maxWidth=640, maxHeight=400)
 		self.tab.Page.screencastFrame = self.processStreamFrame
 
@@ -196,8 +196,13 @@ class QWOP:
 		self.sendKeyEvent(key, "keyUp")
 
 	def holdKey(self, key):
+		
 		if (key != self.previousKey):
+			if (self.previousKey):
+				self.sendKeyEvent(self.previousKey, "keyUp")
+			
 			self.sendKeyEvent(key, "keyDown")
+			self.previousKey = key
 
 	def isScoreSimilar(self):
 		return self.scoreIsSimilar
@@ -255,4 +260,4 @@ class QWOP:
             nativeVirtualKeyCode=option["nativeVirtualKeyCode"],
             windowsVirtualKeyCode=option["windowsVirtualKeyCode"])
 
-		self.previousKey = key
+		# self.previousKey = key

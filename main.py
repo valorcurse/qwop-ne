@@ -1,5 +1,4 @@
 from qwop import QWOP, Key
-# from neuralNetwork import Net
 from neat import NEAT
 from genes import NeuronType
 
@@ -7,12 +6,8 @@ from genes import innovations
 
 global innovations
 
-import torch
-from torch.autograd import Variable
-
-# import multiprocessing
-# from multiprocessing import Pool, Queue, Value
-# import multiprocessing.managers as managers
+# import torch
+# from torch.autograd import Variable
 
 import multiprocess as multiprocessing
 from multiprocess.pool import Pool
@@ -20,6 +15,8 @@ from multiprocess import Queue, Value
 import multiprocess.managers as managers
 
 from matplotlib import pyplot
+
+from prettytable import PrettyTable
 
 import numpy as np
 import cv2
@@ -35,7 +32,7 @@ import cProfile
 import argparse
 import traceback
 
-windowPositions = [(0, 0), (0, 600), (400, 0), (400, 600), (800, 0)]
+windowPositions = [(0, 0), (450, 0), (900, 0), (0, 400), (450, 400)]
 
 # Shortcut to multiprocessing's logger
 def error(msg, *args):
@@ -69,34 +66,31 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
 
     fitnessScore = 0
 
+    displayStream = False
+
     qwop = instances.get()
     if (phenotype.toDraw):
         qwop.grabImage()
         phenotype.draw(qwop.runningTrack())
         phenotype.toDraw = False
 
+    if displayStream:
+        cv2.namedWindow(str(qwop.getNumber()))
+        pos = windowPositions[qwop.getNumber()]
+        cv2.moveWindow(str(qwop.getNumber()), pos[0], pos[1])
+
     differentKeysPressed = []
     startTime = None
     while (running):
-        # qwop.grabImage()
 
-        # cv2.imshow("image", qwop.runningTrack())
-        # if (qwop.grayImage is not None):
-        # with image_lock: 
-        cv2.imshow(str(qwop.getNumber()), qwop.getImage())
-        pos = windowPositions[qwop.getNumber()]
-        cv2.moveWindow(str(qwop.getNumber()), pos[0], pos[1])
-        cv2.waitKey(1)
+        if displayStream:
+            cv2.imshow(str(qwop.getNumber()), qwop.getImage())
+            cv2.waitKey(20)
         
         if (not gameStarted):
             gameStarted = True
             qwop.startGame()
         else:
-            # if (qwop.isPlayable()):
-                # previousFitnessScore = fitnessScore
-                # fitnessScore = qwop.score()
-
-            # if qwop.isImageSimilar():
             if qwop.isScoreSimilar():
                 if startTime == None:
                     startTime = time.time()
@@ -112,20 +106,22 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
             outputs = phenotype.update(inputs)
             maxOutput = np.argmax(outputs, axis=0)
             predicted = Key(maxOutput)
-            # qwop.pressKey(predicted)
             qwop.holdKey(predicted)
 
             if (not predicted in differentKeysPressed):
                 differentKeysPressed.append(predicted)
-            # else:
-                # fitnessScore = qwop.score()
-                # running = False
 
     finishedIndex.value += 1
     print("\rFinished phenotype ("+ str(finishedIndex.value) +"/"+ str(nrOfPhenotypes) +")", end='')
     # print("Finished phenotype ("+ str(finishedIndex.value) +"/"+ str(nrOfPhenotypes) +")")
 
+    if displayStream:
+        cv2.destroyWindow(str(qwop.getNumber()))
+        
     instances.put(qwop)
+
+    phenotype.genome.distance = fitnessScore
+    phenotype.genome.uniqueKeysPressed = differentKeysPressed
 
     fitnessScore = max(0, fitnessScore)
     fitnessScore = pow(fitnessScore, len(differentKeysPressed))
@@ -154,13 +150,15 @@ if __name__ == '__main__':
     queueManager = QueueManager()
     queueManager.start()
 
-    nrOfInstances = 5
-    nrOfOrgamisms = 25
+    nrOfInstances = 2
+    nrOfOrgamisms = 4
 
     instances = multiprocessing.Manager().Queue()
     for i in range(nrOfInstances):
         newQWOP = queueManager.QWOP(i)
         print(newQWOP)
+        while (not newQWOP.isAtIntro()):
+            pass
         # cv2.namedWindow(str(newQWOP))
         instances.put(newQWOP)
 
@@ -186,8 +184,8 @@ if __name__ == '__main__':
         pool = Pool(nrOfInstances)
         finishedIndex = multiprocessing.Manager().Value('i', 0)
         for i, phenotype in enumerate(neat.phenotypes):
-            # results[i] = pool.apply_async(testOrganism, (phenotype, instances, finishedIndex, len(neat.phenotypes)))
-            results[i] = pool.apply_async(LogExceptions(testOrganism), (phenotype, instances, finishedIndex, len(neat.phenotypes)))
+            results[i] = pool.apply_async(testOrganism, (phenotype, instances, finishedIndex, len(neat.phenotypes)))
+            # results[i] = pool.apply_async(LogExceptions(testOrganism), (phenotype, instances, finishedIndex, len(neat.phenotypes)))
         pool.close()
         pool.join()
 
@@ -206,10 +204,21 @@ if __name__ == '__main__':
         # print("Number of innovations: " + str(len(innovations.listOfInnovations)))
         # print("Number of genomes: " + str(len(neat.genomes)))
         print("Number of species: " + str(len(neat.species)))
-        print("ID", "\t", "age", "\t", "fitness", "\t", "adj. fitness", "\t", "stag")
+        # print("ID", "\t", "age", "\t", "fitness", "\t", "adj. fitness", "\t", "distance", "\t", "unique keys", "\t", "stag", "\t", "neurons", "\t", "links")
+        table = PrettyTable(["ID", "age", "fitness", "adj. fitness", "distance", "unique keys", "stag", "neurons", "links"])
         for s in neat.species:
-            print(s.ID, "\t", s.age, "\t", "{:1.4f}".format(max([m.fitness for m in s.members])), 
-                "\t", "{:1.4f}".format(s.adjustedFitness), "\t", s.generationsWithoutImprovement)
-        
-    with open(saveDirectory + "/" + saveFile, 'wb') as output:
-        pickle.dump([neat, innovations], output)
+            table.add_row([
+                s.ID,                                                             # Species ID
+                s.age,                                                            # Age
+                int(max([m.fitness for m in s.members])),                         # Average fitness
+                "{:1.4f}".format(s.adjustedFitness),                              # Adjusted fitness
+                "{:1.4f}".format(max([m.distance for m in s.members])),           # Average distance
+                "{:1.4f}".format(max([m.uniqueKeysPressed for m in s.members])),  # Average unique keys
+                s.generationsWithoutImprovement,                                  # Stagnation
+                int(np.mean([len(m.neurons)-1890 for m in s.members])),           # Neurons
+                np.mean([len(m.links) for m in s.members])])                      # Links
+
+        print(table)
+
+        with open(saveDirectory + "/" + saveFile, 'wb') as output:
+            pickle.dump([neat, innovations], output)

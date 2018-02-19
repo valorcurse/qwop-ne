@@ -16,7 +16,7 @@ from genes import innovations
 global innovations
 
 class CSpecies:
-    numGensAllowNoImprovement = 60
+    numGensAllowNoImprovement = 20
 
     def __init__(self, speciesID):
         self.ID = speciesID
@@ -65,44 +65,40 @@ class CSpecies:
         self.adjustedFitness = newAdjustedFitness
 
 class NEAT:
-    genomes = []
-    phenotypes = []
-    species = []
-    speciesNumber = 0
-
-    populationSize = 25
-
-    generation = 0
-
-    currentGenomeID = 0
-
-    numOfSweepers = None
-    crossoverRate = 0.7
-    maxNumberOfNeuronsPermitted = 15
-
-    newSpeciesTolerance = 3.0
-
-    chanceToMutateBias = 0.7
-
-    chanceToAddNode = 0.03
-    numOfTriesToFindOldLink = 10
-
-    chanceToAddLink = 0.07
-    chanceToAddRecurrentLink = 0.05
-    numOfTriesToFindLoopedLink = 15
-    numOfTriesToAddLink = 20
-
-    mutationRate = 0.2
-    probabilityOfWeightReplaced = 0.1
-    maxWeightPerturbation = 0.5
-
-    activationMutationRate = 0.8
-    maxActivationPerturbation = 0.8
-
     def __init__(self, numberOfGenomes, numOfInputs, numOfOutputs):
-        self.numOfSweepers = numberOfGenomes
 
-        # newSpecies = CSpecies(self.speciesNumber)
+        self.genomes = []
+        self.phenotypes = []
+        self.species = []
+        self.speciesNumber = 0
+
+        self.populationSize = numberOfGenomes
+
+        self.generation = 0
+
+        self.currentGenomeID = 0
+
+        self.crossoverRate = 0.7
+        self.maxNumberOfNeuronsPermitted = 15
+
+        self.newSpeciesTolerance = 3.0
+
+        self.chanceToMutateBias = 0.7
+
+        self.chanceToAddNode = 0.03
+        self.numOfTriesToFindOldLink = 10
+
+        self.chanceToAddLink = 0.07
+        self.chanceToAddRecurrentLink = 0.05
+        self.numOfTriesToFindLoopedLink = 15
+        self.numOfTriesToAddLink = 20
+
+        self.mutationRate = 0.2
+        self.probabilityOfWeightReplaced = 0.1
+        self.maxWeightPerturbation = 0.5
+
+        self.activationMutationRate = 0.8
+        self.maxActivationPerturbation = 0.8
 
         inputs = []
         # print("Creating input neurons:")
@@ -126,7 +122,7 @@ class NEAT:
         print("")
         inputs.extend(outputs)
 
-        for i in range(self.numOfSweepers):
+        for i in range(self.populationSize):
             newGenome = CGenome(self.currentGenomeID, inputs, [], numOfInputs, numOfOutputs)
             self.genomes.append(newGenome)
             # newSpecies.members.append(newGenome)
@@ -141,6 +137,8 @@ class NEAT:
             phenotype = genome.createPhenotype(depth)
 
             self.phenotypes.append(phenotype)
+
+        self.epoch([0]*len(self.genomes))
 
     def epoch(self, fitnessScores):
         if (len(fitnessScores) != len(self.genomes)):
@@ -256,10 +254,10 @@ class NEAT:
                     self.currentGenomeID += 1
                     baby.ID = self.currentGenomeID
 
-                    if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
-                        baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
+                    # if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
+                    baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
 
-                    for i in range(5):
+                    for i in range(50):
                         baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
                                      self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
 

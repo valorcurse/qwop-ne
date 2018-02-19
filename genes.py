@@ -3,6 +3,7 @@ from random import randint
 
 import math
 from math import cos, sin, atan, ceil, floor
+from sklearn.preprocessing import normalize
 from enum import Enum
 import itertools
 
@@ -206,7 +207,11 @@ class CGenome:
         self.inputs = inputs
         self.outputs = outputs
         
-        self.fitness = 0.0
+        self.fitness = 0
+
+        # For printing
+        self.distance = 0
+        self.uniqueKeysPressed = 0
 
     def __lt__(self, other):
         return self.fitness < other.fitness
@@ -491,6 +496,8 @@ class CNeuralNet:
     def update(self, inputs):
         outputs = []
 
+        inputs = inputs / 255
+
         # Set input neurons values
         inputNeurons = [neuron for neuron in self.neurons if neuron.neuronType == NeuronType.INPUT]
         for value, neuron in zip(inputs, inputNeurons):
@@ -506,7 +513,7 @@ class CNeuralNet:
 
                 neuronOutput = link.fromNeuron.output
                 neuronSum += weight * neuronOutput
-
+                
             currentNeuron.output = self.sigmoid(neuronSum)
 
             if (currentNeuron.neuronType == NeuronType.OUTPUT):
