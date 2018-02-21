@@ -81,7 +81,8 @@ class NEAT:
         self.crossoverRate = 0.7
         self.maxNumberOfNeuronsPermitted = 15
 
-        self.newSpeciesTolerance = 3.0
+        # self.newSpeciesTolerance = 15.0
+        self.newSpeciesTolerance = 0.8
 
         self.chanceToMutateBias = 0.7
 
@@ -160,15 +161,20 @@ class NEAT:
             speciesMatched = False
 
             speciesIndex = 0
+            # leaders = [spc.leader() for spc in self.species]
             while (speciesIndex < len(self.species)):
                 s = self.species[speciesIndex]
-                leaders = [spc.leader() for spc in self.species]
+                leader = s.leader()
 
-                if (genome in leaders):
+                # if (genome in leaders):
+                if (genome == leader):
                     speciesMatched = True
                     break
 
+
                 distance = genome.calculateCompatibilityDistance(s.leader())
+                # print(genome.ID, "->", leader.ID, "=", distance)
+                # print("{} ({},{}) -> {} ({}, {}) = {}".format(genome.ID, len(genome.neurons), len(genome.links), leader.ID, len(leader.neurons), len(leader.links), distance))
                 # If genome falls within tolerance of species, add it
                 if (distance < self.newSpeciesTolerance):
                     s.members.append(genome)
@@ -234,7 +240,7 @@ class NEAT:
             chosenBestYet = False
 
             numToSpawn = s.numToSpawn
-            print("Spawning for species:", s.ID, "| Amount:", numToSpawn)
+            # print("Spawning for species:", s.ID, "| Amount:", numToSpawn)
             for i in range(numToSpawn):
                 baby = None
 
@@ -257,7 +263,7 @@ class NEAT:
                     # if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
                     baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
 
-                    for i in range(50):
+                    for i in range(15):
                         baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
                                      self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
 

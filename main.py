@@ -66,7 +66,7 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
 
     fitnessScore = 0
 
-    displayStream = False
+    displayStream = True
 
     qwop = instances.get()
     if (phenotype.toDraw):
@@ -120,8 +120,8 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
         
     instances.put(qwop)
 
-    phenotype.genome.distance = fitnessScore
-    phenotype.genome.uniqueKeysPressed = differentKeysPressed
+    # phenotype.genome.distance = fitnessScore
+    # phenotype.genome.uniqueKeysPressed = differentKeysPressed
 
     fitnessScore = max(0, fitnessScore)
     fitnessScore = pow(fitnessScore, len(differentKeysPressed))
@@ -133,13 +133,12 @@ class QueueManager(managers.BaseManager):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("saveFileName")
+    parser.add_argument("saveFolder")
     parser.add_argument("--load")
 
     args = parser.parse_args()
 
-    saveFile = args.saveFileName
-    saveDirectory = "saves"
+    saveDirectory = "saves/" + args.saveFolder
     if not os.path.exists(saveDirectory):
         os.makedirs(saveDirectory)
 
@@ -150,7 +149,7 @@ if __name__ == '__main__':
     queueManager = QueueManager()
     queueManager.start()
 
-    nrOfInstances = 2
+    nrOfInstances = 1
     nrOfOrgamisms = 4
 
     instances = multiprocessing.Manager().Queue()
@@ -198,27 +197,36 @@ if __name__ == '__main__':
         print("")
         print("-----------------------------------------------------")
         print(fitnessScores)
-        print("Running epoch")
-        neat.phenotypes = neat.epoch(fitnessScores)
         print("Generation: " + str(neat.generation))
         # print("Number of innovations: " + str(len(innovations.listOfInnovations)))
         # print("Number of genomes: " + str(len(neat.genomes)))
         print("Number of species: " + str(len(neat.species)))
-        # print("ID", "\t", "age", "\t", "fitness", "\t", "adj. fitness", "\t", "distance", "\t", "unique keys", "\t", "stag", "\t", "neurons", "\t", "links")
         table = PrettyTable(["ID", "age", "fitness", "adj. fitness", "distance", "unique keys", "stag", "neurons", "links"])
         for s in neat.species:
             table.add_row([
-                s.ID,                                                             # Species ID
-                s.age,                                                            # Age
-                int(max([m.fitness for m in s.members])),                         # Average fitness
-                "{:1.4f}".format(s.adjustedFitness),                              # Adjusted fitness
-                "{:1.4f}".format(max([m.distance for m in s.members])),           # Average distance
-                "{:1.4f}".format(max([m.uniqueKeysPressed for m in s.members])),  # Average unique keys
-                s.generationsWithoutImprovement,                                  # Stagnation
-                int(np.mean([len(m.neurons)-1890 for m in s.members])),           # Neurons
-                np.mean([len(m.links) for m in s.members])])                      # Links
+                s.ID,                                                       # Species ID
+                s.age,                                                      # Age
+                int(max([m.fitness for m in s.members])),                   # Average fitness
+                "{:1.4f}".format(s.adjustedFitness),                        # Adjusted fitness
+                "{}".format(max([m.distance for m in s.members])),          # Average distance
+                "{}".format(max([m.uniqueKeysPressed for m in s.members])), # Average unique keys
+                s.generationsWithoutImprovement,                            # Stagnation
+                int(np.mean([len(m.neurons)-1890 for m in s.members])),     # Neurons
+                np.mean([len(m.links) for m in s.members])])                # Links
 
         print(table)
 
-        with open(saveDirectory + "/" + saveFile, 'wb') as output:
-            pickle.dump([neat, innovations], output)
+        # Save current generation
+        saveFileName = args.saveFolder + "." + str(neat.generation)
+        with open(saveDirectory + "/" + saveFileName, 'wb') as file:
+            pickle.dump([neat, innovations], file)
+
+        # Append to summary file
+        with open(saveDirectory + "/summary.txt", 'a') as file:
+            file.write("Generation " + str(neat.generation) + "\n")
+            file.write(table.get_string())
+            file.write("\n\n")
+
+
+        print("Running epoch")
+        neat.phenotypes = neat.epoch(fitnessScores)

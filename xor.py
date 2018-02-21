@@ -6,6 +6,9 @@ global innovations
 import random
 import time
 from matplotlib import pyplot
+from prettytable import PrettyTable
+
+import numpy as np
 
 import multiprocessing
 from multiprocessing import Pool, Queue, Value
@@ -67,7 +70,7 @@ if __name__ == '__main__':
         
         # randomPhenotype = random.choice(neat.phenotypes)
         # randomPhenotype.toDraw = True
-        p.toDraw = True
+        # p.toDraw = True
 
         finishedIndex = multiprocessing.Manager().Value('i', 0)
         # pool = Pool(multiprocessing.cpu_count())
@@ -95,19 +98,37 @@ if __name__ == '__main__':
         # print("-----------------------------------------------------")
         # print(fitnessScores)
         # print("Running epoch")
+
+        print("Number of species: " + str(len(neat.species)))
+        table = PrettyTable(["ID", "age", "fitness", "adj. fitness", "distance", "unique keys", "stag", "neurons", "links"])
+        for s in neat.species:
+            table.add_row([
+                s.ID,                                                             # Species ID
+                s.age,                                                            # Age
+                int(max([m.fitness for m in s.members])),                         # Average fitness
+                "{:1.4f}".format(s.adjustedFitness),                              # Adjusted fitness
+                "{:1.4f}".format(max([m.distance for m in s.members])),           # Average distance
+                "{:1.4f}".format(max([m.uniqueKeysPressed for m in s.members])),  # Average unique keys
+                s.generationsWithoutImprovement,                                  # Stagnation
+                int(np.mean([len(m.neurons) for m in s.members])),           # Neurons
+                np.mean([len(m.links) for m in s.members])])                      # Links
+
+        print(table)
+
         neat.phenotypes = neat.epoch(fitnessScores)
         print("")
         print("####################### Generation: " + str(neat.generation) + " #######################")
         # print("Number of innovations: " + str(len(innovations.listOfInnovations)))
         allFitnesses = sum([g.fitness for g in neat.genomes])
-        print("Best fitness:", max(fitnessScores))
-        print("Average fitness:", allFitnesses/len(neat.genomes))
-        print("Number of phenotypes: " + str(len(neat.phenotypes)))
-        print("Number of species: " + str(len(neat.species)))
-        print("ID", "\t", "age", "\t", "fitness", "\t", "adj. fitness", "\t", "stag")
-        for s in neat.species:
-            print(s.ID, "\t", s.age, "\t", "{:1.4f}".format(max([m.fitness for m in s.members])), 
-                "\t", "{:1.4f}".format(s.adjustedFitness), "\t", s.generationsWithoutImprovement)
+        # print("Best fitness:", max(fitnessScores))
+        # print("Average fitness:", allFitnesses/len(neat.genomes))
+        # print("Number of phenotypes: " + str(len(neat.phenotypes)))
+        # print("Number of species: " + str(len(neat.species)))
+        # print("ID", "\t", "age", "\t", "fitness", "\t", "adj. fitness", "\t", "stag")
+        # for s in neat.species:
+        #     print(s.ID, "\t", s.age, "\t", "{:1.4f}".format(max([m.fitness for m in s.members])), 
+        #         "\t", "{:1.4f}".format(s.adjustedFitness), "\t", s.generationsWithoutImprovement)
+
 
         time.sleep(0.1)
         

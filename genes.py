@@ -10,6 +10,8 @@ import itertools
 import numpy as np
 from matplotlib import pyplot
 
+from prettytable import PrettyTable
+
 image_width = 34
 image_height = 31
 horizontal_distance_between_layers = 5
@@ -50,13 +52,13 @@ class Innovations:
 
     def createNewLinkInnovation(self, fromNeuron, toNeuron):
         newInnovation = SInnovation(InnovationType.LINK, len(self.listOfInnovations), fromNeuron, toNeuron, -1,
-                                    NeuronType.LINK)
+                                    InnovationType.LINK)
         self.listOfInnovations.append(newInnovation)
 
         return len(self.listOfInnovations) - 1;
 
     def createNewLink(self, fromNeuron, toNeuron, enabled, weight, recurrent=False):
-        ID = innovations.checkInnovation(fromNeuron, toNeuron, NeuronType.LINK)
+        ID = innovations.checkInnovation(fromNeuron, toNeuron, InnovationType.LINK)
         if (ID == -1):
             ID = self.createNewLinkInnovation(fromNeuron, toNeuron)
         
@@ -80,13 +82,28 @@ class Innovations:
         self.currentNeuronID += 1
 
         return SNeuronGene(neuronType, self.currentNeuronID, x, y, ID)
-
+    
     def checkInnovation(self, start, end, innovationType):
         matched = next((innovation for innovation in self.listOfInnovations if (
                 (innovation.start == start) and
                 (innovation.end == end) and
                 (innovation.innovationType == innovationType))), None)
-        # print(matched)
+
+        # table = PrettyTable(["start", "end", "type", "matched"])
+        # table.add_row([start.ID, end.ID, innovationType, None])
+        # for innovation in self.listOfInnovations:
+        #     if (innovation.innovationType == InnovationType.NEURON):
+        #         continue
+
+        #     isMatched = (innovation.start == start) and (innovation.end == end) and (innovation.innovationType == innovationType)
+        #     table.add_row([innovation.start.ID if innovation.start else "none", 
+        #         innovation.end.ID if innovation.end else "none", 
+        #         innovation.innovationType, 
+        #         matched])
+
+        # print(table)
+
+        # print("matched:", matched)
         return -1 if (matched == None) else matched.innovationID
 
     def getInnovation(self, innovationID):
@@ -227,11 +244,9 @@ class CGenome:
 
         for selfLink, otherLink in combinedLinks:
 
-            if (not selfLink):
-                numExcess += 1
-                continue
+            # print("{} {}".format(selfLink.innovationID if selfLink else "null", otherLink.innovationID if otherLink else "null"))
 
-            if (not otherLink):
+            if (not selfLink or not otherLink):
                 numExcess += 1
                 continue
 
@@ -241,23 +256,26 @@ class CGenome:
             if (selfID == otherID):
                 numMatched += 1
                 weightDifference += math.fabs(selfLink.weight - otherLink.weight)
-
-            if (selfID < otherID):
+            else:
                 numDisjointed += 1
 
-            if (selfID > otherID):
-                numDisjointed += 1
-
-        longest = max(len(otherGenome.links), len(self.links))
+        longest = max(1.0, max(len(otherGenome.links), len(self.links)))
+        # print("longest:", longest)
         longest = 1.0 if longest <= 20.0 else longest
+
+        # print(numMatched, numDisjointed, numExcess, weightDifference)
 
         disjoint = 1.0
         excess = 1.0
-        matched = 0.4
+        matched = 0.5
 
-        return ((excess * numExcess / longest) +
-                (disjoint * numDisjointed / longest) +
-                (matched * weightDifference / numMatched))
+        excessDelta = (excess * numExcess / longest)
+        disjointDelta = (disjoint * numDisjointed / longest)
+        matchedDelta = (matched * weightDifference)
+
+        # print(excessDelta, disjointDelta, matchedDelta)
+
+        return excessDelta + disjointDelta + matchedDelta
 
     def addLink(self, mutationRate, chanceOfLooped, triesToFindLoop, triesToAddLink):
 
