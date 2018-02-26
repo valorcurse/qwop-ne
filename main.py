@@ -102,7 +102,7 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
             else:
                 startTime = None
 
-            inputs = qwop.runningTrack().flatten()
+            inputs = qwop.runningTrack().flatten() / 255
             outputs = phenotype.update(inputs)
             maxOutput = np.argmax(outputs, axis=0)
             predicted = Key(maxOutput)
@@ -150,7 +150,7 @@ if __name__ == '__main__':
     queueManager.start()
 
     nrOfInstances = 1
-    nrOfOrgamisms = 4
+    nrOfOrgamisms = 50
 
     instances = multiprocessing.Manager().Queue()
     for i in range(nrOfInstances):
@@ -196,23 +196,27 @@ if __name__ == '__main__':
 
         print("")
         print("-----------------------------------------------------")
+        print("Running epoch")
+        neat.phenotypes = neat.epoch(fitnessScores)
         print(fitnessScores)
         print("Generation: " + str(neat.generation))
         # print("Number of innovations: " + str(len(innovations.listOfInnovations)))
         # print("Number of genomes: " + str(len(neat.genomes)))
         print("Number of species: " + str(len(neat.species)))
-        table = PrettyTable(["ID", "age", "fitness", "adj. fitness", "distance", "unique keys", "stag", "neurons", "links"])
+        table = PrettyTable(["ID", "age", "members", "max fitness", "adj. fitness", "stag", "neurons", "links", "to spawn"])
         for s in neat.species:
             table.add_row([
                 s.ID,                                                       # Species ID
                 s.age,                                                      # Age
-                int(max([m.fitness for m in s.members])),                   # Average fitness
+                len(s.members),                                             # Nr. of members
+                int(max([m.fitness for m in s.members])),                   # Max fitness
                 "{:1.4f}".format(s.adjustedFitness),                        # Adjusted fitness
-                "{}".format(max([m.distance for m in s.members])),          # Average distance
-                "{}".format(max([m.uniqueKeysPressed for m in s.members])), # Average unique keys
+                # "{}".format(max([m.distance for m in s.members])),          # Average distance
+                # "{}".format(max([m.uniqueKeysPressed for m in s.members])), # Average unique keys
                 s.generationsWithoutImprovement,                            # Stagnation
-                int(np.mean([len(m.neurons)-1890 for m in s.members])),     # Neurons
-                np.mean([len(m.links) for m in s.members])])                # Links
+                int(np.mean([len(m.neurons)-1894 for m in s.members])),     # Neurons
+                np.mean([len(m.links) for m in s.members]),                 # Links
+                s.numToSpawn])                                              # Nr. of members to spawn
 
         print(table)
 
@@ -227,6 +231,3 @@ if __name__ == '__main__':
             file.write(table.get_string())
             file.write("\n\n")
 
-
-        print("Running epoch")
-        neat.phenotypes = neat.epoch(fitnessScores)

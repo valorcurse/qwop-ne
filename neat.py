@@ -16,7 +16,7 @@ from genes import innovations
 global innovations
 
 class CSpecies:
-    numGensAllowNoImprovement = 20
+    numGensAllowNoImprovement = 100
 
     def __init__(self, speciesID):
         self.ID = speciesID
@@ -25,8 +25,8 @@ class CSpecies:
         self.age = 0
         self.numToSpawn = 0
 
-        self.youngBonusAgeThreshold = 10
-        self.youngFitnessBonus = 1.5
+        self.youngAgeThreshold = 10
+        self.youngAgeBonus = 1.5
         self.oldAgeThreshold = 50
         self.oldAgePenalty = 0.5
 
@@ -62,6 +62,12 @@ class CSpecies:
         if (self.generationsWithoutImprovement == self.numGensAllowNoImprovement):
             self.stagnant = True
 
+        if self.age <= self.youngAgeThreshold:
+            newAdjustedFitness *= self.youngAgeBonus
+
+        if self.age >= self.oldAgeThreshold:
+            newAdjustedFitness *= self.oldAgePenalty
+
         self.adjustedFitness = newAdjustedFitness
 
 class NEAT:
@@ -79,17 +85,18 @@ class NEAT:
         self.currentGenomeID = 0
 
         self.crossoverRate = 0.7
-        self.maxNumberOfNeuronsPermitted = 15
+        self.maxNumberOfNeuronsPermitted = 5
 
-        # self.newSpeciesTolerance = 15.0
-        self.newSpeciesTolerance = 0.8
+        # self.newSpeciesTolerance = 5.0
+        self.newSpeciesTolerance = 3.0
 
         self.chanceToMutateBias = 0.7
 
-        self.chanceToAddNode = 0.03
+        self.chanceToAddNode = 0.2
+        # self.chanceToAddNode = 1.0
         self.numOfTriesToFindOldLink = 10
 
-        self.chanceToAddLink = 0.07
+        self.chanceToAddLink = 0.5
         self.chanceToAddRecurrentLink = 0.05
         self.numOfTriesToFindLoopedLink = 15
         self.numOfTriesToAddLink = 20
@@ -139,7 +146,7 @@ class NEAT:
 
             self.phenotypes.append(phenotype)
 
-        self.epoch([0]*len(self.genomes))
+        self.phenotypes = self.epoch([0]*len(self.genomes))
 
     def epoch(self, fitnessScores):
         if (len(fitnessScores) != len(self.genomes)):
@@ -260,12 +267,12 @@ class NEAT:
                     self.currentGenomeID += 1
                     baby.ID = self.currentGenomeID
 
-                    # if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
-                    baby.addNeuron(self.chanceToAddNode, self.numOfTriesToFindOldLink)
+                    if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
+                        baby.addNeuron(self.chanceToAddNode)
 
-                    for i in range(15):
-                        baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
-                                     self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
+                    # for i in range(15):
+                    baby.addLink(self.chanceToAddLink, self.chanceToAddRecurrentLink,
+                                 self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
 
                     baby.mutateWeights(self.mutationRate, self.probabilityOfWeightReplaced,
                                        self.maxWeightPerturbation)
