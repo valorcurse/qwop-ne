@@ -235,49 +235,51 @@ class CGenome:
     def __lt__(self, other):
         return self.fitness < other.fitness
 
-    def calculateCompatibilityDistance(self, otherGenome):
-        numExcess = 0.0
-        numMatched = 1.0
-        numDisjointed = 0.0
+    def calculateCompatibilityDistance(self, other):
+        numDisjointed = 0
+        weightDifferences = []
 
-        weightDifference = 0.0
+        combinedIndexes = list(set(
+            [l.innovationID for l in self.links] + [l.innovationID for l in other.links]))
+        combinedIndexes.sort()
+        
+        selfDict = {l.innovationID: l for l in self.links}
+        otherDict = {l.innovationID: l for l in other.links}
 
-        combinedLinks = itertools.zip_longest(self.links, otherGenome.links)
-
-        for selfLink, otherLink in combinedLinks:
+        # print("-------------------------------------------------")
+        babyLinks = []
+        for i in combinedIndexes:
+            selfLink = selfDict.get(i)
+            otherLink = otherDict.get(i)
 
             # print("{} {}".format(selfLink.innovationID if selfLink else "null", otherLink.innovationID if otherLink else "null"))
 
-            if (not selfLink or not otherLink):
-                numExcess += 1
-                continue
-
-            selfID = selfLink.innovationID
-            otherID = otherLink.innovationID
-
-            if (selfID == otherID):
-                numMatched += 1
-                weightDifference += math.fabs(selfLink.weight - otherLink.weight)
-            else:
+            if (selfLink is None or otherLink is None):
                 numDisjointed += 1
+            else:
+                selfID = selfLink.innovationID
+                otherID = otherLink.innovationID
 
-        longest = max(1.0, max(len(otherGenome.links), len(self.links)))
+                if (selfID == otherID):
+                    weightDifferences.append(math.fabs(selfLink.weight - otherLink.weight))
+
+        longest = max(1.0, max(len(other.links), len(self.links)))
         # print("longest:", longest)
-        longest = 1.0 if longest <= 20.0 else longest
+        # longest = 1.0 if longest <= 20.0 else longest
 
-        # print(numMatched, numDisjointed, numExcess, weightDifference)
+        weightDifference = 0.0 if len(weightDifferences) == 0 else np.mean(weightDifferences)
+
+        # print(numMatched, numDisjointed, numExcess, weightDifferences)
 
         disjoint = 1.0
-        excess = 1.0
         matched = 0.5
 
-        excessDelta = (excess * numExcess / longest)
         disjointDelta = (disjoint * numDisjointed / longest)
         matchedDelta = (matched * weightDifference)
 
-        # print(excessDelta, disjointDelta, matchedDelta)
+        # print(excessDelta, disjointDelta, matchedDelta, excessDelta + disjointDelta + matchedDelta)
 
-        return excessDelta + disjointDelta + matchedDelta
+        return disjointDelta + matchedDelta
 
     def addLink(self, mutationRate, chanceOfLooped, triesToFindLoop, triesToAddLink):
 
@@ -344,8 +346,7 @@ class CGenome:
         if (fromNeuron.splitY > toNeuron.splitY):
             recurrent = True
 
-        randomClamped = random.random() - random.random()
-        link = innovations.createNewLink(fromNeuron, toNeuron, True, randomClamped, recurrent)
+        link = innovations.createNewLink(fromNeuron, toNeuron, True, random.gauss(0.0, 1.0), recurrent)
         # print("Adding link:", [fromNeuron.ID, toNeuron.ID])
         self.links.append(link)
 
@@ -363,8 +364,8 @@ class CGenome:
         maxRand = len(self.links)
 
         sizeThreshold = self.inputs + self.outputs + 5
-        # if (len(self.links) < sizeThreshold):
-            # maxRand = math.floor(len(self.links) - math.sqrt(len(self.links)))
+        if (len(self.links) < sizeThreshold):
+            maxRand = math.floor(len(self.links) - math.sqrt(len(self.links)))
 
         possibleLinks = [l for l in self.links[:maxRand]
             if l.enabled and not l.recurrent and l.fromNeuron.neuronType != NeuronType.BIAS]
@@ -395,14 +396,12 @@ class CGenome:
         self.neurons.sort(key=lambda x: x.splitY, reverse=False)
 
     def mutateWeights(self, mutationRate, replacementProbability, maxWeightPerturbation):
-        if (random.random() < mutationRate):
             for link in self.links:
                 if (random.random() < replacementProbability):
-                    # link.weight = random.random()
-                    link.weight = random.uniform(-30.0, 30.0)
-                    return
-                else:
-                    link.weight += random.uniform(-1, 1) * maxWeightPerturbation
+                    link.weight = random.gauss(0.0, 1.0)
+                elif (random.random() < mutationRate):
+                    # link.weight += random.uniform(-1.0, 1.0) * maxWeightPerturbation
+                    link.weight += random.gauss(0.0, maxWeightPerturbation)
                     link.weight = min(1.0, max(-1.0, link.weight))
 
 
@@ -410,14 +409,11 @@ class CGenome:
         if (random.random() < mutationRate):
             biasInput = [n for n in self.neurons if n.neuronType == NeuronType.BIAS][0]
 
-            randomClamped = random.random() - random.random()
-
-            biasInput.biasValue += random.uniform(-1, 1) * maxWeightPerturbation
+            # biasInput.biasValue += random.uniform(-1.0, 1.0) * maxWeightPerturbation
+            biasInput.biasValue += random.gauss(0.0, maxWeightPerturbation)
             biasInput.biasValue = min(1.0, max(-1.0, biasInput.biasValue))
-            # biasInput.biasValue = min(30.0, max(-30.0, biasInput.biasValue))
-            # biasInput.biasValue = random.uniform(-1, 1) * maxWeightPerturbation
 
-    def createPhenotype(self, depth):
+    def createPhenotype(self):
         phenotypeNeurons = []
 
         # print("Genome", self.ID)
@@ -461,16 +457,15 @@ class CGenome:
                 fromNeuron.linksOut.append(tmpLink)
                 toNeuron.linksIn.append(tmpLink)
 
-        return CNeuralNet(phenotypeNeurons, depth, self.ID, self)
+        return CNeuralNet(phenotypeNeurons, self.ID, self)
 
 
 class CNeuralNet:
 
-    def __init__(self, neurons, depth, ID, genome):
+    def __init__(self, neurons, ID, genome):
         self.genome = genome
 
         self.neurons = neurons
-        self.depth = depth
         self.ID = ID
 
         self.toDraw = False
@@ -535,6 +530,7 @@ class CNeuralNet:
                 weight = link.weight
 
                 neuronOutput = link.fromNeuron.output
+                # neuronSum += round(weight * neuronOutput, 5)
                 neuronSum += weight * neuronOutput
 
                 # print(weight, "*", neuronOutput, "=", neuronSum)

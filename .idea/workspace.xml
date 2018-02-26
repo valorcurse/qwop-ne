@@ -2,9 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="20f0ba33-75ca-4e7a-a23e-11fbd86399db" name="Default" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/qwop-ne.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/qwop-ne.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/genes.py" beforeDir="false" afterPath="$PROJECT_DIR$/genes.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/neat.py" beforeDir="false" afterPath="$PROJECT_DIR$/neat.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/xor.py" beforeDir="false" afterPath="$PROJECT_DIR$/xor.py" afterDir="false" />
     </list>
@@ -20,20 +21,17 @@
       <file leaf-file-name="neat.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/neat.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="3645">
-              <caret line="256" selection-start-line="256" selection-end-line="256" />
-              <folding>
-                <element signature="e#0#13#0" expanded="true" />
-              </folding>
+            <state relative-caret-position="256">
+              <caret line="236" column="24" selection-start-line="236" selection-start-column="24" selection-end-line="236" selection-end-column="24" />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="genes.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="genes.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/genes.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="255">
-              <caret line="543" selection-start-line="543" selection-end-line="543" />
+            <state relative-caret-position="225">
+              <caret line="539" selection-start-line="539" selection-end-line="539" />
             </state>
           </provider>
         </entry>
@@ -41,7 +39,7 @@
       <file leaf-file-name="main.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="15">
+            <state relative-caret-position="930">
               <caret line="66" selection-start-line="66" selection-end-line="66" />
               <folding>
                 <element signature="e#0#26#0" expanded="true" />
@@ -50,11 +48,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="xor.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="xor.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/xor.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="240">
-              <caret line="57" column="4" selection-start-line="57" selection-start-column="4" selection-end-line="57" selection-end-column="4" />
+            <state relative-caret-position="255">
+              <caret line="59" column="4" selection-start-line="59" selection-start-column="4" selection-end-line="59" selection-end-column="4" />
               <folding>
                 <element signature="e#0#29#0" expanded="true" />
               </folding>
@@ -90,17 +88,16 @@
       <list>
         <option value="$PROJECT_DIR$/main2.py" />
         <option value="$PROJECT_DIR$/main.py" />
-        <option value="$PROJECT_DIR$/genes.py" />
-        <option value="$PROJECT_DIR$/neat.py" />
         <option value="$PROJECT_DIR$/xor.py" />
+        <option value="$PROJECT_DIR$/neat.py" />
+        <option value="$PROJECT_DIR$/genes.py" />
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="601" />
-    <option name="y" value="174" />
-    <option name="width" value="1280" />
-    <option name="height" value="998" />
+  <component name="ProjectFrameBounds" extendedState="7">
+    <option name="x" value="-1" />
+    <option name="width" value="1922" />
+    <option name="height" value="1055" />
   </component>
   <component name="ProjectView">
     <navigator proportions="" version="1">
@@ -123,6 +120,7 @@
   </component>
   <component name="PropertiesComponent">
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -207,7 +205,7 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="-1" y="0" width="1922" height="1055" extended-state="6" />
+    <frame x="-1" y="0" width="1922" height="1055" extended-state="7" />
     <editor active="true" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.12480253" />
@@ -221,12 +219,12 @@
       <window_info active="true" anchor="bottom" id="Debug" order="3" visible="true" weight="0.43991417" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
-      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="right" id="Commander" order="0" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
-      <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Message" order="0" />
+      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
+      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+      <window_info anchor="bottom" id="Find" order="1" />
     </layout>
   </component>
   <component name="VcsContentAnnotationSettings">
@@ -242,13 +240,13 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/xor.py</url>
-          <line>63</line>
+          <line>65</line>
           <option name="timeStamp" value="46" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/genes.py</url>
-          <line>543</line>
-          <option name="timeStamp" value="51" />
+          <line>539</line>
+          <option name="timeStamp" value="53" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
@@ -258,17 +256,63 @@
           </properties>
         </breakpoint>
       </default-breakpoints>
-      <option name="time" value="52" />
+      <option name="time" value="54" />
     </breakpoint-manager>
+    <watches-manager>
+      <configuration name="PythonConfigurationType">
+        <watch expression="currentNeuron.output" />
+      </configuration>
+    </watches-manager>
   </component>
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/neat.py">
       <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="3645">
+          <caret line="256" selection-start-line="256" selection-end-line="256" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/genes.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="7965">
+          <caret line="543" selection-start-line="543" selection-end-line="543" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="930">
+          <caret line="66" selection-start-line="66" selection-end-line="66" />
+          <folding>
+            <element signature="e#0#26#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/main2.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="255">
+          <caret line="22" selection-start-line="22" selection-end-line="22" />
+          <folding>
+            <element signature="e#0#26#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/xor.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="840">
+          <caret line="57" column="4" selection-start-line="57" selection-start-column="4" selection-end-line="57" selection-end-column="4" />
+          <folding>
+            <element signature="e#0#29#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/neat.py">
+      <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="3630">
           <caret line="255" selection-start-line="255" selection-end-line="255" />
-          <folding>
-            <element signature="e#0#13#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -313,9 +357,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="4830">
           <caret line="322" column="20" selection-start-line="322" selection-start-column="20" selection-end-line="322" selection-end-column="20" />
-          <folding>
-            <element signature="e#0#13#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -364,9 +405,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="4320">
           <caret line="288" selection-start-line="288" selection-end-line="288" />
-          <folding>
-            <element signature="e#0#13#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -391,13 +429,7 @@
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/neat.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state>
-          <folding>
-            <element signature="e#0#13#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
+      <provider selected="true" editor-type-id="text-editor" />
     </entry>
     <entry file="file://$PROJECT_DIR$/genes.py">
       <provider selected="true" editor-type-id="text-editor">
@@ -427,13 +459,7 @@
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/neat.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state>
-          <folding>
-            <element signature="e#0#13#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
+      <provider selected="true" editor-type-id="text-editor" />
     </entry>
     <entry file="file://$PROJECT_DIR$/genes.py">
       <provider selected="true" editor-type-id="text-editor">
@@ -463,13 +489,7 @@
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/neat.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state>
-          <folding>
-            <element signature="e#0#13#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
+      <provider selected="true" editor-type-id="text-editor" />
     </entry>
     <entry file="file://$PROJECT_DIR$/main.py">
       <provider selected="true" editor-type-id="text-editor">
@@ -495,9 +515,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="2085">
           <caret line="139" column="24" selection-start-line="139" selection-start-column="24" selection-end-line="139" selection-end-column="24" />
-          <folding>
-            <element signature="e#0#13#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -539,16 +556,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/neat.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3645">
-          <caret line="256" selection-start-line="256" selection-end-line="256" />
-          <folding>
-            <element signature="e#0#13#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/anaconda/lib/python3.6/multiprocessing/pool.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="241">
@@ -558,7 +565,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/main.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="15">
+        <state relative-caret-position="930">
           <caret line="66" selection-start-line="66" selection-end-line="66" />
           <folding>
             <element signature="e#0#26#0" expanded="true" />
@@ -566,20 +573,27 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/genes.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="255">
-          <caret line="543" selection-start-line="543" selection-end-line="543" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/xor.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="57" column="4" selection-start-line="57" selection-start-column="4" selection-end-line="57" selection-end-column="4" />
+        <state relative-caret-position="255">
+          <caret line="59" column="4" selection-start-line="59" selection-start-column="4" selection-end-line="59" selection-end-column="4" />
           <folding>
             <element signature="e#0#29#0" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/neat.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="256">
+          <caret line="236" column="24" selection-start-line="236" selection-start-column="24" selection-end-line="236" selection-end-column="24" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/genes.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="225">
+          <caret line="539" selection-start-line="539" selection-end-line="539" />
         </state>
       </provider>
     </entry>

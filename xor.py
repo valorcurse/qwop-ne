@@ -16,7 +16,8 @@ from multiprocessing import Pool, Queue, Value
 import multiprocessing.managers as managers
 
 xor_inputs = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]]
-xor_outputs = [0.0, 1.0, 1.0, 0.0]
+# xor_outputs = [0.0, 1.0, 1.0, 0.0]
+xor_outputs = [   (0.0,),     (1.0,),     (1.0,),     (0.0,)]
 
 def testOrganism(phenotype, finishedIndex, nrOfPhenotypes):
     # if phenotype.toDraw:
@@ -31,17 +32,18 @@ def testOrganism(phenotype, finishedIndex, nrOfPhenotypes):
     for xi, xo in zip(xor_inputs, xor_outputs):
         output = phenotype.update(xi)
         
-        # fitnessScore -= abs(output[0] - xo) ** 2
-        score = math.fabs(xo - output[0])
-        fitnessScore -= score
-        answers.append(score)
+        fitnessScore -= (output[0] - xo[0]) ** 2
+        # score = math.fabs(xo - output[0])
+        # fitnessScore -= score
+        # fitnessScore -= math.fabs(xo - output[0])
+        # answers.append(score)
         # if phenotype.toDraw:
         # print(xi, output[0], "==", xo, "=", fitnessScore)
 
     # if phenotype.toDraw:
     nrOfLinks = [n for n in phenotype.neurons for l in n.linksIn]
     # print(len(nrOfLinks))
-    if fitnessScore == 2.0 and len(phenotype.neurons) == 5 and len(nrOfLinks) == 7:
+    if fitnessScore == 3.0 and len(phenotype.neurons) >= 5 and len(nrOfLinks) > 7:
 
         # print("Drawing phenotype", phenotype.ID)
         # print("Number of species: " + str(len(neat.species)))
@@ -68,7 +70,7 @@ def testOrganism(phenotype, finishedIndex, nrOfPhenotypes):
     # finishedIndex.value += 1
     # print("\rFinished phenotype ("+ str(finishedIndex.value) +"/"+ str(nrOfPhenotypes) +")", end='')
 
-    return fitnessScore
+    return round(fitnessScore, 5)
 
 if __name__ == '__main__':
     print("Creating NEAT object")
@@ -98,6 +100,19 @@ if __name__ == '__main__':
         if (highestFitness > highScore):
             highScore = highestFitness
 
+            if (highScore > 3.9):
+                print("Reached 3.9!")
+                print(s.ID,                                                       # Species ID
+                    s.age,                                                      # Age
+                    len(s.members),                                             # Nr. of members
+                    max([m.fitness for m in s.members]),                        # Max fitness
+                    "{:1.4f}".format(s.adjustedFitness),                        # Adjusted fitness
+                    s.generationsWithoutImprovement,                            # Stagnation
+                    int(np.mean([len(m.neurons) for m in s.members])),          # Neurons
+                    np.mean([len(m.links) for m in s.members]),                 # Links
+                    s.numToSpawn)
+                break
+
             print("###########################")
             print("NEW HIGHSCORE", highScore)
             print("###########################")
@@ -106,8 +121,10 @@ if __name__ == '__main__':
         print("")
         print("####################### Generation: " + str(neat.generation) + " #######################")
 
+        print("Number of genomes: " + str(len(neat.genomes)))
         print("Number of species: " + str(len(neat.species)))
-        table = PrettyTable(["ID", "age", "members", "max fitness", "adj. fitness", "stag", "neurons", "links", "to spawn"])
+        print("Highest score:", highScore)
+        table = PrettyTable(["ID", "age", "members", "max fitness", "adj. fitness", "stag", "neurons", "links", "avg. weight", "to spawn"])
         for s in neat.species:
             table.add_row([
                 s.ID,                                                       # Species ID
@@ -118,9 +135,11 @@ if __name__ == '__main__':
                 s.generationsWithoutImprovement,                            # Stagnation
                 int(np.mean([len(m.neurons) for m in s.members])),          # Neurons
                 np.mean([len(m.links) for m in s.members]),                 # Links
+                np.mean([l.weight for m in s.members for l in m.links]),
                 s.numToSpawn])                                              # Nr. of members to spawn
+            # print(s.ID, [m.ID for m in s.members])
 
         print(table)
 
-        time.sleep(0.1)
+        time.sleep(0.5)
         
