@@ -48,45 +48,55 @@ class Innovations:
     def __init__(self):
         self.listOfInnovations = []
 
-        self.currentNeuronID = -1
+        self.currentNeuronID = 0
 
     def createNewLinkInnovation(self, fromNeuron, toNeuron):
-        newInnovation = SInnovation(InnovationType.LINK, len(self.listOfInnovations), fromNeuron, toNeuron, -1,
-                                    InnovationType.LINK)
-        self.listOfInnovations.append(newInnovation)
-
-        return len(self.listOfInnovations) - 1;
-
-    def createNewLink(self, fromNeuron, toNeuron, enabled, weight, recurrent=False):
         ID = innovations.checkInnovation(fromNeuron, toNeuron, InnovationType.LINK)
+
         if (ID == -1):
-            ID = self.createNewLinkInnovation(fromNeuron, toNeuron)
-        
+            newInnovation = SInnovation(InnovationType.LINK, len(self.listOfInnovations), fromNeuron, toNeuron, -1,
+                                        InnovationType.LINK)
+            self.listOfInnovations.append(newInnovation)
+            ID = len(self.listOfInnovations) - 1
+
+        return ID;
+
+    def createNewLink(self, fromNeuron, toNeuron, enabled, weight, recurrent=False):    
+        ID = self.createNewLinkInnovation(fromNeuron, toNeuron)
         return SLinkGene(fromNeuron, toNeuron, enabled, ID, weight, recurrent)
 
-    def createNewNeuronInnovation(self, fromNeuron, toNeuron):
-        # neurons = [neuron for neuron in self.listOfInnovations if neuron.innovationType == InnovationType.NEURON]
-        values = np.array(self.listOfInnovations)
-        neurons = np.where(values == InnovationType.NEURON)
-        newNeuronID = len(neurons)
-        newInnovation = SInnovation(InnovationType.NEURON, len(self.listOfInnovations),
-                                    fromNeuron, toNeuron, newNeuronID, NeuronType.HIDDEN)
-        self.listOfInnovations.append(newInnovation)
+    def createNewNeuronInnovation(self):
+        ID = innovations.checkInnovation(None, None, InnovationType.NEURON)
+        
+        if (ID == -1):
+            values = np.array(self.listOfInnovations)
+            neurons = np.where(values == InnovationType.NEURON)
+            
+            newNeuronID = len(neurons)
+        
+            newInnovation = SInnovation(InnovationType.NEURON, len(self.listOfInnovations),
+                                        None, None, newNeuronID, NeuronType.HIDDEN)
 
-        return len(self.listOfInnovations) - 1;
+            self.listOfInnovations.append(newInnovation)
 
-    def createNewNeuron(self, fromNeuron, toNeuron, x, y, neuronType):
-        # ID = innovations.checkInnovation(fromNeuron, toNeuron, InnovationType.NEURON)
-        # if (ID == -1) and (innovations.getInnovation(ID) != None):
-        ID = self.createNewNeuronInnovation(fromNeuron, toNeuron)
-        self.currentNeuronID += 1
+            ID = len(self.listOfInnovations) - 1
 
-        return SNeuronGene(neuronType, self.currentNeuronID, x, y, ID)
+        return ID;
+
+    def createNewNeuron(self, y, neuronType, neuronID = None):
+        innovationID = self.createNewNeuronInnovation()
+
+        if (neuronID is None):
+            neuronID = self.currentNeuronID
+            self.currentNeuronID += 1
+
+        return SNeuronGene(neuronType, neuronID, y, innovationID)
     
-    def checkInnovation(self, start, end, innovationType):
+    def checkInnovation(self, start, end, innovationType, neuronID = -1):
         matched = next((innovation for innovation in self.listOfInnovations if (
                 (innovation.start == start) and
                 (innovation.end == end) and
+                (innovation.neuronID == neuronID) and
                 (innovation.innovationType == innovationType))), None)
 
         # table = PrettyTable(["start", "end", "type", "matched"])
@@ -106,8 +116,9 @@ class Innovations:
         # print("matched:", matched)
         return -1 if (matched == None) else matched.innovationID
 
-    def getInnovation(self, innovationID):
-        return self.listOfInnovations[innovationID]
+    # def getInnovation(self, innovationID):
+    #     return self.listOfInnovations[innovationID] - 1
+
 
 
 # Global innovations database
@@ -132,27 +143,18 @@ class SLinkGene:
     def __lt__(self, other):
         return self.innovationID < other.innovationID
 
+    def __eq__(self, other):
+        return self.innovationID == other.innovationID
 
 class SNeuronGene:
-    # def __init__(self, neuronType, ID, x, y, innovationID, recurrent=False):
-    def __init__(self, neuronType, ID, x, y, innovationID):
-        self.ID = ID
+    def __init__(self, neuronType, ID, y, innovationID):
         self.neuronType = neuronType
-        self.recurrent = False
-        self.activationResponse = None
-        self.splitX = x
+        self.ID = ID
         self.splitY = y
-
-        # In case it's a bias neuron
-        self.biasValue = 1.0
-
         self.innovationID = innovationID
-
-        self.numInputs = 0
-        self.numOutputs = 0
-
-        self.neurons = []
-        self.links = []
+        
+        self.activationResponse = None
+        self.bias = 0.0
 
 
 class SLink:
@@ -167,11 +169,12 @@ class SLink:
 
 
 class SNeuron:
-    def __init__(self, neuronType, neuronID, y, x, activationResponse):
+    def __init__(self, neuronType, neuronID, bias, y, activationResponse):
         self.linksIn = []
-        self.linksOut = []
+        # self.linksOut = []
 
         self.sumActivation = 0.0
+        self.bias = bias
         self.output = 0.0
 
         self.neuronType = neuronType
@@ -181,7 +184,6 @@ class SNeuron:
         self.activationResponse = activationResponse
 
         self.posX = self.posY = 0
-        self.splitX = x
         self.splitY = y
 
     def __line_between_two_neurons(self, neuron1, neuron2):
@@ -204,7 +206,7 @@ class SNeuron:
             radius=neuron_radius, fill=(self.neuronType == NeuronType.BIAS))
         pyplot.gca().add_patch(circle)
         pyplot.annotate(str(self.ID), xy=(self.posX - neuron_radius/4, self.posY))
-        pyplot.annotate(str("{:1.2f}".format(self.output)), xy=(self.posX - neuron_radius/2, self.posY - neuron_radius/2))
+        pyplot.annotate(str("{:1.2f}".format(self.bias)), xy=(self.posX - neuron_radius/2, self.posY - neuron_radius/2))
 
         for l in self.linksIn:
             fromNeuron = l.fromNeuron
@@ -221,22 +223,40 @@ class CGenome:
 
     def __init__(self, ID, neurons, links, inputs, outputs):
         self.ID = ID
-        self.neurons = neurons
-        self.links = links
+        # self.currentNeuronID = outputs
+
         self.inputs = inputs
         self.outputs = outputs
         
+        self.links = links
+        self.neurons = neurons
+        
+        if (len(self.neurons) == 0):
+            for n in range(inputs):
+                newNeuron = innovations.createNewNeuron(0.0, NeuronType.INPUT, -n-1)
+                # self.currentNeuronID += 1
+                self.neurons.append(newNeuron)
+
+            for n in range(outputs):
+                newNeuron = innovations.createNewNeuron(1.0, NeuronType.OUTPUT, -inputs-n-1)
+                # self.currentNeuronID += 1
+                self.neurons.append(newNeuron)
+
         self.fitness = 0
 
         # For printing
         self.distance = 0
         self.uniqueKeysPressed = 0
+            
 
     def __lt__(self, other):
         return self.fitness < other.fitness
 
     def calculateCompatibilityDistance(self, other):
-        numDisjointed = 0
+        disjointRate = 1.0
+        matchedRate = 0.5
+
+        disjointedLinks = 0.0
         weightDifferences = []
 
         combinedIndexes = list(set(
@@ -246,8 +266,6 @@ class CGenome:
         selfDict = {l.innovationID: l for l in self.links}
         otherDict = {l.innovationID: l for l in other.links}
 
-        # print("-------------------------------------------------")
-        babyLinks = []
         for i in combinedIndexes:
             selfLink = selfDict.get(i)
             otherLink = otherDict.get(i)
@@ -255,36 +273,49 @@ class CGenome:
             # print("{} {}".format(selfLink.innovationID if selfLink else "null", otherLink.innovationID if otherLink else "null"))
 
             if (selfLink is None or otherLink is None):
-                numDisjointed += 1
+                disjointedLinks += 1.0
             else:
-                selfID = selfLink.innovationID
-                otherID = otherLink.innovationID
+                weightDifferences.append(math.fabs(selfLink.weight - otherLink.weight))
 
-                if (selfID == otherID):
-                    weightDifferences.append(math.fabs(selfLink.weight - otherLink.weight))
-
-        longest = max(1.0, max(len(other.links), len(self.links)))
-        # print("longest:", longest)
-        # longest = 1.0 if longest <= 20.0 else longest
-
+        longestLinks = max(1.0, max(len(other.links), len(self.links)))
+        # longestLinks = 1.0 if longestLinks <= 20 else longestLinks
         weightDifference = 0.0 if len(weightDifferences) == 0 else np.mean(weightDifferences)
+        # print(longestLinks)
+        # print(disjointedLinks, weightDifferences)
 
-        # print(numMatched, numDisjointed, numExcess, weightDifferences)
+        linkDistance = (disjointRate * disjointedLinks / longestLinks) + (matchedRate * weightDifference)
 
-        disjoint = 1.0
-        matched = 0.5
+        disjointedNeurons = 0.0
+        biasDifferences = []
 
-        disjointDelta = (disjoint * numDisjointed / longest)
-        matchedDelta = (matched * weightDifference)
+        combinedNeurons = list(set(
+            [n.innovationID for n in self.neurons] + [n.innovationID for n in other.neurons]))
+        combinedNeurons.sort()
+        
+        selfDict = {n.innovationID: n for n in self.neurons}
+        otherDict = {n.innovationID: n for n in other.neurons}
 
-        # print(excessDelta, disjointDelta, matchedDelta, excessDelta + disjointDelta + matchedDelta)
+        for i in combinedNeurons:
+            selfNeuron = selfDict.get(i)
+            otherNeuron = otherDict.get(i)
 
-        return disjointDelta + matchedDelta
+            # print("{} {}".format(selfNeuron.innovationID if selfNeuron else "null", otherNeuron.innovationID if otherNeuron else "null"))
 
-    def addLink(self, mutationRate, chanceOfLooped, triesToFindLoop, triesToAddLink):
+            if (selfNeuron is None or otherNeuron is None):
+                disjointedNeurons += 1.0
+            else:
+                biasDifferences.append(math.fabs(selfNeuron.bias - otherNeuron.bias))
 
-        if (random.random() > mutationRate):
-            return
+        longestNeurons = max(1.0, max(len(other.neurons), len(self.neurons)))
+        # longestNeurons = 1.0 if longestNeurons <= 20 else longestNeurons
+        biasDifference = 0.0 if len(biasDifferences) == 0 else np.mean(biasDifferences)
+
+        neuronDistance = (disjointRate * disjointedNeurons / longestNeurons) + (matchedRate * biasDifference)
+
+        # return linkDistance + neuronDistance
+        return linkDistance
+
+    def addLink(self, chanceOfLooped, triesToFindLoop, triesToAddLink):
 
         fromNeuron = None
         toNeuron = None
@@ -303,37 +334,24 @@ class CGenome:
         #     # recurrent = loopNeuron.recurrent = True
 
         # else:
-        keepLoopRunning = True
-        while (triesToAddLink):
-            fromNeurons = [neuron for neuron in self.neurons
-                           if (neuron.neuronType in [NeuronType.INPUT, NeuronType.BIAS, NeuronType.HIDDEN])]
-            # fromNeurons = [neuron for neuron in self.neurons
-                           # if (neuron.neuronType in [NeuronType.BIAS])]
-            fromNeuron = random.choice(fromNeurons)
 
-            toNeurons = [neuron for neuron in self.neurons
-                         if (neuron.neuronType in [NeuronType.OUTPUT, NeuronType.HIDDEN])]
+        keepLoopRunning = True
+        fromNeurons = [neuron for neuron in self.neurons
+                       if (neuron.neuronType in [NeuronType.INPUT, NeuronType.HIDDEN])]
+
+        toNeurons = [neuron for neuron in self.neurons
+                     if (neuron.neuronType in [NeuronType.OUTPUT, NeuronType.HIDDEN])]
+        
+        while (triesToAddLink):
+            
+            fromNeuron = random.choice(fromNeurons)
             toNeuron = random.choice(toNeurons)
 
-            linkIsDuplicate = False
-
-            # print("ID:", self.ID)
             for l in self.links:
-                # print([l.fromNeuron.ID, l.toNeuron.ID], "==", [fromNeuron.ID, toNeuron.ID])
                 if (l.fromNeuron.ID == fromNeuron.ID) and (l.toNeuron.ID == toNeuron.ID):
-                    linkIsDuplicate = True
-                    # print("Found duplicate")
-                    break
+                    return
 
-            # linkIsDuplicate = next(
-            #     (l for l in self.links
-            #      if (l.fromNeuron == fromNeuron) and
-            #      (l.toNeuron == toNeuron)),
-            #     None)
-
-            # print("Duplicate:", fromNeuron.ID, toNeuron.ID, linkIsDuplicate)
-
-            if (not linkIsDuplicate and fromNeuron.ID != toNeuron.ID and fromNeuron.splitY < toNeuron.splitY):
+            if (fromNeuron.ID != toNeuron.ID and fromNeuron.splitY < toNeuron.splitY):
                 break
             else:
                 fromNeuron = toNeuron = None
@@ -343,48 +361,53 @@ class CGenome:
         if (fromNeuron == None or toNeuron == None):
             return
 
-        if (fromNeuron.splitY > toNeuron.splitY):
-            recurrent = True
+        # if (fromNeuron.splitY > toNeuron.splitY):
+            # recurrent = True
 
-        link = innovations.createNewLink(fromNeuron, toNeuron, True, random.gauss(0.0, 1.0), recurrent)
-        # print("Adding link:", [fromNeuron.ID, toNeuron.ID])
+        # link = innovations.createNewLink(fromNeuron, toNeuron, True, random.gauss(0.0, 1.0), recurrent)
+
+        link = innovations.createNewLink(fromNeuron, toNeuron, True, 1.0, recurrent)
         self.links.append(link)
 
 
-    def addNeuron(self, chanceToAddNeuron):
+    def removeLink(self):
+        if (len(self.links) == 0):
+            return
+
+        randomLink = random.choice(self.links)
+        self.links.remove(randomLink)
+
+
+    def addNeuron(self):
 
         if (len(self.links) < 1):
             return
 
-        randomChance = random.random()
-        if (randomChance > chanceToAddNeuron):
-            # print(randomChance)
-            return
-
         maxRand = len(self.links)
 
-        sizeThreshold = self.inputs + self.outputs + 5
-        if (len(self.links) < sizeThreshold):
-            maxRand = math.floor(len(self.links) - math.sqrt(len(self.links)))
+        # sizeThreshold = self.inputs + self.outputs + 1
+        # if (len(self.links) < sizeThreshold):
+            # maxRand = math.ceil(len(self.links) - math.sqrt(len(self.links)))
 
-        possibleLinks = [l for l in self.links[:maxRand]
-            if l.enabled and not l.recurrent and l.fromNeuron.neuronType != NeuronType.BIAS]
+        possibleLinks = [l for l in self.links[:maxRand] if l.enabled]
+            # if l.enabled and not l.recurrent]
 
+        # print(len(possibleLinks), len(self.links))
         if (len(possibleLinks) == 0):
             return
 
         chosenLink = random.choice(possibleLinks)
-        chosenLink.enabled = False
+        
+        # print(chosenLink.innovationID)
 
         originalWeight = chosenLink.weight
-
         fromNeuron = chosenLink.fromNeuron
         toNeuron = chosenLink.toNeuron
 
         newDepth = (fromNeuron.splitY + toNeuron.splitY) / 2
-        newWidth = (fromNeuron.splitX + toNeuron.splitX) / 2
 
-        newNeuron = innovations.createNewNeuron(fromNeuron, toNeuron, newWidth, newDepth, NeuronType.HIDDEN)
+        newNeuron = innovations.createNewNeuron(newDepth, NeuronType.HIDDEN)
+        # self.currentNeuronID += 1
 
         link1 = innovations.createNewLink(fromNeuron, newNeuron, True, 1.0)
         self.links.append(link1)
@@ -392,51 +415,70 @@ class CGenome:
         link2 = innovations.createNewLink(newNeuron, toNeuron, True, originalWeight)
         self.links.append(link2)
 
+        self.links.remove(chosenLink)
+
+        # print(self.ID, "-- Adding new neuron:", newNeuron.ID)
+        # print(self.ID, "-- Links:", [(l.innovationID, l.fromNeuron.ID, l.toNeuron.ID) for l in self.links])
+
         self.neurons.append(newNeuron)
         self.neurons.sort(key=lambda x: x.splitY, reverse=False)
 
+        # print([n.ID for n in self.neurons])
+        # print(len(self.links), len(self.neurons))
+
+    def removeNeuron(self):
+        possibleNeurons = [n for n in self.neurons if n.neuronType == NeuronType.HIDDEN]
+        if (len(possibleNeurons) == 0):
+            return
+
+        randomNeuron = random.choice(possibleNeurons)
+
+        # allLinks = randomNeuron.linksIn + randomNeuron.linksOut
+        connectedLinks = [l for l in self.links if l.toNeuron.ID == randomNeuron.ID or l.fromNeuron.ID == randomNeuron.ID]
+        # print(connectedLinks)
+        for link in connectedLinks:
+            self.links.remove(link)
+
+        self.neurons.remove(randomNeuron)
+
     def mutateWeights(self, mutationRate, replacementProbability, maxWeightPerturbation):
             for link in self.links:
-                if (random.random() < replacementProbability):
-                    link.weight = random.gauss(0.0, 1.0)
-                elif (random.random() < mutationRate):
+                if (random.random() < mutationRate):
                     # link.weight += random.uniform(-1.0, 1.0) * maxWeightPerturbation
                     link.weight += random.gauss(0.0, maxWeightPerturbation)
-                    link.weight = min(1.0, max(-1.0, link.weight))
+                    link.weight = min(30.0, max(-30.0, link.weight))
+
+                elif (random.random() < replacementProbability):
+                    link.weight = random.gauss(0.0, 1.0)
 
 
-    def mutateBias(self, mutationRate, maxWeightPerturbation):
-        if (random.random() < mutationRate):
-            biasInput = [n for n in self.neurons if n.neuronType == NeuronType.BIAS][0]
+    def mutateBias(self, mutationRate, replacementProbability, maxWeightPerturbation):
+        # biasInput = [n for n in self.neurons if n.neuronType == NeuronType.HIDDEN][0]
 
-            # biasInput.biasValue += random.uniform(-1.0, 1.0) * maxWeightPerturbation
-            biasInput.biasValue += random.gauss(0.0, maxWeightPerturbation)
-            biasInput.biasValue = min(1.0, max(-1.0, biasInput.biasValue))
+        neurons = [n for n in self.neurons if n.neuronType in [NeuronType.HIDDEN, NeuronType.OUTPUT]]
+        for n in neurons:
+            if (random.random() < mutationRate):
+                n.bias += random.gauss(0.0, maxWeightPerturbation)
+                n.bias = min(30.0, max(-30.0, n.bias))
+
+            elif (random.random() < replacementProbability):
+                n.bias = random.gauss(0.0, maxWeightPerturbation)
 
     def createPhenotype(self):
         phenotypeNeurons = []
 
-        # print("Genome", self.ID)
-        # print("Neurons:")
-        # for n in self.neurons:
-        #     print("ID:", n.ID, "InnovationID:", n.innovationID, "\tType:", n.neuronType, 
-        #         "  \tx:", n.splitY, "\ty:", n.splitX)
-        # print("Links:")
-        # for l in self.links:
-        #     if l.enabled:
-        #         print("ID:", l.innovationID, "\t", l.fromNeuron.ID, "->", l.toNeuron.ID, 
-        #             "\tWeight:", l.weight, "    \tEnabled:", l.enabled, "\tRecurrent:", l.recurrent)
-
-        # print("")
+        # print("--", self.ID)
+        # print(len(self.neurons))
+        # print("--------- Genome", self.ID)
+        # print([n.ID for n in self.neurons])        
+        # print([n.innovationID for n in self.neurons])        
         for neuron in self.neurons:
             newNeuron = SNeuron(neuron.neuronType,
                         neuron.ID,
+                        # neuron.innovationID,
+                        neuron.bias,
                         neuron.splitY,
-                        neuron.splitX,
                         neuron.activationResponse)
-
-            if (neuron.neuronType == NeuronType.BIAS):
-                newNeuron.output = neuron.biasValue
 
             phenotypeNeurons.append(newNeuron)
 
@@ -445,16 +487,20 @@ class CGenome:
         for link in self.links:
             if (link.enabled):
                 fromNeuron = next((neuron
-                                   for neuron in (phenotypeNeurons) if (neuron.ID == link.fromNeuron.ID)), None)
+                                   for neuron in phenotypeNeurons if (neuron.ID == link.fromNeuron.ID)), None)
                 toNeuron = next((neuron
-                                 for neuron in (phenotypeNeurons) if (neuron.ID == link.toNeuron.ID)), None)
+                                 for neuron in phenotypeNeurons if (neuron.ID == link.toNeuron.ID)), None)
+
+                # print([n.ID for n in self.neurons])
+                # print([neuron.ID for neuron in phenotypeNeurons if (neuron.ID == link.toNeuron.ID)])
+                # print(link.fromNeuron.ID, link.toNeuron.ID)
+                # print(fromNeuron.ID, toNeuron.ID)
 
                 tmpLink = SLink(fromNeuron,
                                 toNeuron,
                                 link.weight,
                                 link.recurrent)
 
-                fromNeuron.linksOut.append(tmpLink)
                 toNeuron.linksIn.append(tmpLink)
 
         return CNeuralNet(phenotypeNeurons, self.ID, self)
@@ -504,43 +550,45 @@ class CNeuralNet:
         pyplot.axis('scaled')
         pyplot.gca().relim()
         pyplot.gca().autoscale_view()
-        # pyplot.draw()
-        # pyplot.pause(0.5)
+        pyplot.draw()
+        pyplot.pause(0.5)
         pyplot.show()
 
-    def sigmoid(self, x):
-        return 1.0 / (1.0 + math.exp(-x))
+    # def sigmoid(self, x):
+        # return 1.0 / (1.0 + math.exp(-x))
+
+    def sigmoid(self, z):
+        z = max(-60.0, min(60.0, 5.0 * z))
+        return 1.0 / (1.0 + math.exp(-z))
+
+    # Actually tanh
+    # def sigmoid(self, x):
+        # return (math.exp(x) - math.exp(-x))/(math.exp(x) + math.exp(-x))
 
     def update(self, inputs):
-        outputs = []
+        # outputs = []
 
+        table = PrettyTable(["Type", "ID", "output"])
+        
         # Set input neurons values
         inputNeurons = [neuron for neuron in self.neurons if neuron.neuronType == NeuronType.INPUT]
         for value, neuron in zip(inputs, inputNeurons):
             neuron.output = value
+            # table.add_row([neuron.neuronType, neuron.ID, neuron.output])
 
-        # Set bias
-        # self.neurons[len(inputNeurons)].output = 1.0
-        # print("Inputs:", inputs)
-        for currentNeuron in self.neurons[len(inputNeurons)+1:]:
-
-            # print("Updating network:", currentNeuron.neuronType)
-            neuronSum = 0.0
+        for currentNeuron in self.neurons[len(inputNeurons):]:
+            neuronSum = []
             for link in currentNeuron.linksIn:
-                weight = link.weight
+                neuronSum.append(link.fromNeuron.output * link.weight)
 
-                neuronOutput = link.fromNeuron.output
-                # neuronSum += round(weight * neuronOutput, 5)
-                neuronSum += weight * neuronOutput
+            currentNeuron.output = self.sigmoid(currentNeuron.bias + sum(neuronSum))
+            table.add_row([currentNeuron.neuronType, currentNeuron.ID, currentNeuron.output])
 
-                # print(weight, "*", neuronOutput, "=", neuronSum)
-                
-            currentNeuron.output = self.sigmoid(neuronSum)
+            # if (currentNeuron.neuronType == NeuronType.OUTPUT):
+                # outputs.append(currentNeuron.output)
 
-            if (currentNeuron.neuronType == NeuronType.OUTPUT):
-                outputs.append(currentNeuron.output)
-
-        return outputs
+        # print(table)
+        return [n.output for n in self.neurons if n.neuronType == NeuronType.OUTPUT]
 
 class Layer():
     def __init__(self, network, neuronsToDraw):

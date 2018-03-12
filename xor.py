@@ -15,15 +15,15 @@ import multiprocessing
 from multiprocessing import Pool, Queue, Value
 import multiprocessing.managers as managers
 
+import operator
+
 xor_inputs = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]]
 # xor_outputs = [0.0, 1.0, 1.0, 0.0]
-xor_outputs = [   (0.0,),     (1.0,),     (1.0,),     (0.0,)]
+xor_outputs = [0.0, 1.0, 1.0, 0.0]
+
 
 def testOrganism(phenotype, finishedIndex, nrOfPhenotypes):
-    # if phenotype.toDraw:
-        # print("Drawing phenotype", phenotype.ID)
-        # phenotype.draw()
-        # phenotype.toDraw = False
+    
     # print("")
     # print("Phenotype", phenotype.ID)
     
@@ -31,115 +31,135 @@ def testOrganism(phenotype, finishedIndex, nrOfPhenotypes):
     answers = []
     for xi, xo in zip(xor_inputs, xor_outputs):
         output = phenotype.update(xi)
-        
-        fitnessScore -= (output[0] - xo[0]) ** 2
-        # score = math.fabs(xo - output[0])
-        # fitnessScore -= score
-        # fitnessScore -= math.fabs(xo - output[0])
-        # answers.append(score)
+
+        # fitnessScore -= (output[0] - xo) ** 2
+
         # if phenotype.toDraw:
-        # print(xi, output[0], "==", xo, "=", fitnessScore)
+            # print("Drawing phenotype", phenotype.ID)
+            # phenotype.draw()
+            
+        fitnessScore -= math.fabs(xo - output[0])
+        answers.append(output)
 
-    # if phenotype.toDraw:
-    nrOfLinks = [n for n in phenotype.neurons for l in n.linksIn]
-    # print(len(nrOfLinks))
-    if fitnessScore == 3.0 and len(phenotype.neurons) >= 5 and len(nrOfLinks) > 7:
-
-        # print("Drawing phenotype", phenotype.ID)
-        # print("Number of species: " + str(len(neat.species)))
-        print("Displaying Phenotype:", phenotype.ID)
-        print(answers)
-        print(fitnessScore)
-        for n in phenotype.neurons:
-            print("Neuron", n.ID)
-            table = PrettyTable(["from", "to", "weight"])
-            for l in n.linksIn:
-                table.add_row([
-                    l.fromNeuron.ID,
-                    l.toNeuron.ID,
-                    l.weight])
-            print(table)
-
-        phenotype.draw()
-
-        for xi, xo in zip(xor_inputs, xor_outputs):
-            print(xi, "->", phenotype.update(xi))
-
-
-    phenotype.toDraw = False
-    # finishedIndex.value += 1
-    # print("\rFinished phenotype ("+ str(finishedIndex.value) +"/"+ str(nrOfPhenotypes) +")", end='')
-
-    return round(fitnessScore, 5)
+    # phenotype.toDraw = False
+    fitnessScore = round(fitnessScore, 5)
+    return (fitnessScore, answers)
 
 if __name__ == '__main__':
     print("Creating NEAT object")
-    
+
     highScore = 0.0
+    highScoreAnswers = []
 
     neat = NEAT(150, 2, 1)
     # pyplot.show()
 
     while True:
-        randomPhenotype = random.choice(neat.phenotypes)
-        randomPhenotype.toDraw = True
+        # randomPhenotype = random.choice(neat.phenotypes)
+        # randomPhenotype.toDraw = True
+        # print([(s.ID, s.numToSpawn, len(s.members)) for s in neat.species])
 
         finishedIndex = multiprocessing.Manager().Value('i', 0)
         pool = Pool(4)
         results = {}
+        # answers = {}
         for i, phenotype in enumerate(neat.phenotypes):
             results[i] = pool.apply_async(testOrganism, (phenotype, finishedIndex, len(neat.phenotypes)))
+            # results[i] = testOrganism(phenotype, finishedIndex, len(neat.phenotypes))
+
         pool.close()
         pool.join()
 
-        fitnessScores = [result.get() for func, result in results.items()]
+        # print(results.items())
+        fitnessScores = [result.get()[0] for func, result in results.items()]
+        answers = [result.get()[1] for func, result in results.items()]
+        # answers = [a[0] for a in answers]
+        # fitnessScores = [result[0] for i, result in results.items()]
+        # answers = [result[1] for i, result in results.items()]
+        # [item for (item,) in x]
+        # print(fitnessScores)
+        # print(answers)
     
-        print("\n")
+        # print("\n")
 
-        highestFitness = max(fitnessScores)
+        for index, genome in enumerate(neat.genomes):
+            genome.fitness = fitnessScores[index]
+
+        # highestFitness = max(fitnessScores)
+        index, highestFitness = max(enumerate(fitnessScores), key=operator.itemgetter(1))
         if (highestFitness > highScore):
             highScore = highestFitness
+            highScoreAnswers = answers[index]
+
+            # if (highScore >= 2.9):
+            #     print([n.splitY for n in neat.phenotypes[index].neurons])
+                
+            #     table = PrettyTable(["Weight", "From", "To"])
+            #     for n in neat.phenotypes[index].neurons:
+            #         print("Neuron", n.ID, n.neuronType, n.splitY)
+            #         for l in n.linksIn:
+            #             table.add_row([l.weight, l.fromNeuron.ID, l.toNeuron.ID])
+
+            #     print(table)
+
+            #     neat.phenotypes[index].draw()
 
             if (highScore > 3.9):
                 print("Reached 3.9!")
-                print(s.ID,                                                       # Species ID
+                wonTable = PrettyTable(["ID", "age", "members", "max fitness", "adj. fitness", "stag", "neurons", "links", "avg. weight", "avg. bias", "to spawn"])
+                wonTable.add_row([
+                    s.ID,                                                       # Species ID
                     s.age,                                                      # Age
                     len(s.members),                                             # Nr. of members
                     max([m.fitness for m in s.members]),                        # Max fitness
                     "{:1.4f}".format(s.adjustedFitness),                        # Adjusted fitness
                     s.generationsWithoutImprovement,                            # Stagnation
-                    int(np.mean([len(m.neurons) for m in s.members])),          # Neurons
-                    np.mean([len(m.links) for m in s.members]),                 # Links
-                    s.numToSpawn)
+                    "{:1.4f}".format(np.mean([len(m.neurons) for m in s.members])), # Neurons
+                    "{:1.4f}".format(np.mean([len(m.links) for m in s.members])),                 # Links
+                    "{:1.4f}".format(np.mean([l.weight for m in s.members for l in m.links])),    # Avg. weight
+                    "{:1.4f}".format(np.mean([n.bias for m in s.members for n in m.neurons])),    # Avg. bias
+                    s.numToSpawn])                                              # Nr. of members to spawn
+                print(wonTable)
+                neat.phenotypes[index].draw()
                 break
 
             print("###########################")
             print("NEW HIGHSCORE", highScore)
             print("###########################")
 
-        neat.phenotypes = neat.epoch(fitnessScores)
         print("")
         print("####################### Generation: " + str(neat.generation) + " #######################")
 
         print("Number of genomes: " + str(len(neat.genomes)))
         print("Number of species: " + str(len(neat.species)))
         print("Highest score:", highScore)
-        table = PrettyTable(["ID", "age", "members", "max fitness", "adj. fitness", "stag", "neurons", "links", "avg. weight", "to spawn"])
+        answersTable = PrettyTable(["[0, 0]", "[0, 1]", "[1, 0]", "[1, 1]"])
+        answersTable.add_row(xor_outputs)
+        print(highScoreAnswers)
+        answersTable.add_row(highScoreAnswers)
+        print(answersTable)
+        # print("Correct answers:", xor_outputs)
+        # print("Highest score answers:", highScoreAnswers)
+        table = PrettyTable(["ID", "age", "members", "max fitness", "adj. fitness", "stag", "neurons", "links", "avg. weight", "avg. bias", "to spawn"])
         for s in neat.species:
             table.add_row([
                 s.ID,                                                       # Species ID
                 s.age,                                                      # Age
                 len(s.members),                                             # Nr. of members
-                max([m.fitness for m in s.members]),                        # Max fitness
+                "{:1.4f}".format(max([m.fitness for m in s.members])),                        # Max fitness
                 "{:1.4f}".format(s.adjustedFitness),                        # Adjusted fitness
                 s.generationsWithoutImprovement,                            # Stagnation
-                int(np.mean([len(m.neurons) for m in s.members])),          # Neurons
-                np.mean([len(m.links) for m in s.members]),                 # Links
-                np.mean([l.weight for m in s.members for l in m.links]),
+                "{:1.4f}".format(np.mean([len(m.neurons) for m in s.members])), # Neurons
+                "{:1.4f}".format(np.mean([len(m.links) for m in s.members])),                 # Links
+                "{:1.4f}".format(np.mean([l.weight for m in s.members for l in m.links])),    # Avg. weight
+                "{:1.4f}".format(np.mean([n.bias for m in s.members for n in m.neurons])),    # Avg. bias
                 s.numToSpawn])                                              # Nr. of members to spawn
             # print(s.ID, [m.ID for m in s.members])
 
         print(table)
+        # print([(s.ID, s.numToSpawn, len(s.members)) for s in neat.species])
 
-        time.sleep(0.5)
+        neat.phenotypes = neat.epoch(fitnessScores)
+
+        # time.sleep(1.5)
         
