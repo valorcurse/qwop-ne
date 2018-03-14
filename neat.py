@@ -126,33 +126,26 @@ class NEAT:
         self.activationMutationRate = 0.8
         self.maxActivationPerturbation = 0.8
 
-        # inputs = []
-        # print("Creating input neurons:")
-        # for n in range(numOfInputs):
-            # print("\rCreating inputs neurons (" + str(n + 1) + "/" + str(numOfInputs) + ")", end='')
-            # newInput = innovations.createNewNeuron(0.0, NeuronType.INPUT, n)
-            # print("neuron id:", newInput.ID)
-            # inputs.append(newInput)
+        inputs = []
+        for n in range(numOfInputs):
+            print("\rCreating inputs neurons (" + str(n + 1) + "/" + str(numOfInputs) + ")", end='')
+            newInput = innovations.createNewNeuron(0.0, NeuronType.INPUT, -n-1)
+            inputs.append(newInput)
 
-        # print("")
+        print("")
 
-        # biasInput = innovations.createNewNeuron(None, None, n, 0.0, NeuronType.BIAS)
-        # inputs.append(biasInput)
+        outputs = []
+        for n in range(numOfOutputs):
+            print("\rCreating output neurons (" + str(n + 1) + "/" + str(numOfOutputs) + ")", end='')
+            newOutput = innovations.createNewNeuron(1.0, NeuronType.OUTPUT, -numOfInputs-n-1)
+            outputs.append(newOutput)
 
-        # outputs = []
-        # for n in range(numOfOutputs):
-        #     print("\rCreating output neurons (" + str(n + 1) + "/" + str(numOfOutputs) + ")", end='')
-        #     newOutput = innovations.createNewNeuron(1.0, NeuronType.OUTPUT)
-        #     outputs.append(newOutput)
+        print("")
 
-        # print("")
-        # inputs.extend(outputs)
-
+        inputs.extend(outputs)
+        newGenome = CGenome(self.currentGenomeID, inputs, [], numOfInputs, numOfOutputs)
         for i in range(self.populationSize):
-            newGenome = CGenome(self.currentGenomeID, [], [], numOfInputs, numOfOutputs)
-            self.genomes.append(newGenome)
-            # newSpecies.members.append(newGenome)
-
+            self.genomes.append(deepcopy(newGenome))
             self.currentGenomeID += 1
 
         self.speciate()
@@ -167,16 +160,13 @@ class NEAT:
             return
 
         # Set fitness score to their respesctive genome
-        # for index, genome in enumerate(self.genomes):
-        #     genome.fitness = fitnessScores[index]
+        for index, genome in enumerate(self.genomes):
+            genome.fitness = fitnessScores[index]
 
         # print("-----------------------------------")
         self.calculateSpawnAmount()
-        # print([(g.ID, g.fitness) for s in self.species for g in s.members])
         self.reproduce()
-        # print([(g.ID, g.fitness) for s in self.species for g in s.members])
         self.speciate()
-        # print([(g.ID, g.fitness) for s in self.species for g in s.members])
 
         newPhenotypes = []
         for genome in self.genomes:

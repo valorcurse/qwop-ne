@@ -16,6 +16,8 @@ import time
 import random
 from random import randint
 
+from matplotlib import pyplot as plt
+
 if __name__ == '__main__':
     # print(cv2.getBuildInformation())
     
@@ -27,6 +29,9 @@ if __name__ == '__main__':
     fitnessScore = 0
 
     while (not qwop.isAtIntro()):
+        # print(qwop.takeScreenshot())
+        # plt.imshow(qwop.image)
+        # plt.show()
         pass
 
     keys = [Key.Q, Key.W, Key.O, Key.P]
@@ -37,8 +42,8 @@ if __name__ == '__main__':
         
         print("\rRun nr: " + str(i), end='')
 
-        while (running):
-        
+        while (running):           
+
             if (not gameStarted):
                 # if (qwop.isAtIntro()):
                 gameStarted = True

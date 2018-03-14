@@ -82,7 +82,6 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
     differentKeysPressed = []
     startTime = None
     while (running):
-        print("running")
 
         if displayStream:
             cv2.imshow(str(qwop.getNumber()), qwop.getImage())
@@ -177,14 +176,12 @@ if __name__ == '__main__':
     stillRunning = True
     while stillRunning:
         results = {}
-        print("running?")
         # randomPhenotype = random.choice(neat.phenotypes)
         # randomPhenotype.toDraw = True
 
         pool = Pool(nrOfInstances)
         finishedIndex = multiprocessing.Manager().Value('i', 0)
         for i, phenotype in enumerate(neat.phenotypes):
-            print("Running organism")
             # results[i] = pool.apply_async(testOrganism, (phenotype, instances, finishedIndex, len(neat.phenotypes)))
             results[i] = pool.apply_async(LogExceptions(testOrganism), (phenotype, instances, finishedIndex, len(neat.phenotypes)))
         pool.close()

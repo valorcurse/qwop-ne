@@ -131,8 +131,12 @@ class QWOP:
 		imgData = base64.b64decode(kwargs.get('data'))
 		img = cv2.cvtColor(np.array(Image.open(io.BytesIO(imgData))), cv2.COLOR_BGR2RGB)
 
-		cv2.imshow("intro", img)
-		print(kwargs.get('data'))
+		# cv2.imshow("intro", img)
+		# print(kwargs.get('data'))
+
+		# pilImg = Image.open(io.BytesIO(imgData))
+		# img = np.array(pilImg.getdata()).reshape(pilImg.size[1], pilImg.size[0], 4)
+
 
 
 		self.image = img[62:-73, 50:-60]
@@ -148,7 +152,7 @@ class QWOP:
 			self.scoreIsSimilar = compare_ssim(self.scoreImage, newScoreImg) > 0.95
 		self.scoreImage = self.grayImage[15:30, 140:275]
 
-		print(kwargs.get('sessionId'))
+		# print(kwargs.get('sessionId'))
 		self.tab.Page.screencastFrameAck(sessionId=kwargs.get('sessionId')) 
 
 	def startGame(self):
