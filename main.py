@@ -70,7 +70,7 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
 
     qwop = instances.get()
     if (phenotype.toDraw):
-        qwop.grabImage()
+        # qwop.grabImage()
         phenotype.draw(qwop.runningTrack())
         phenotype.toDraw = False
 
@@ -82,8 +82,10 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
     differentKeysPressed = []
     startTime = None
     while (running):
+        # qwop.takeScreenshot()
 
         if displayStream:
+            # qwop.showStream()
             cv2.imshow(str(qwop.getNumber()), qwop.getImage())
             cv2.waitKey(20)
         
@@ -123,15 +125,19 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
     # phenotype.genome.distance = fitnessScore
     # phenotype.genome.uniqueKeysPressed = differentKeysPressed
 
-    fitnessScore = max(0, fitnessScore)
-    fitnessScore = pow(fitnessScore, len(differentKeysPressed))
+    # fitnessScore = max(0, fitnessScore)
+    distance = fitnessScore / 100.0
+    if (fitnessScore > 0):
+        fitnessScore = pow(fitnessScore, len(differentKeysPressed))
 
-    return fitnessScore
+    return (distance, fitnessScore)
 
 class QueueManager(managers.BaseManager):
     pass # Pass is really enough. Nothing needs to be done here.
 
 if __name__ == '__main__':
+    import pystuck; pystuck.run_server()
+
     parser = argparse.ArgumentParser()
     parser.add_argument("saveFolder")
     parser.add_argument("--load")
@@ -144,21 +150,21 @@ if __name__ == '__main__':
 
     sys.setrecursionlimit(10000)
     # multiprocessing.set_start_method('spawn')
-    # multiprocessing.log_to_stderr()
+    multiprocessing.log_to_stderr()
     QueueManager.register("QWOP", QWOP)
     queueManager = QueueManager()
     queueManager.start()
 
     nrOfInstances = 1
-    nrOfOrgamisms = 50
+    nrOfOrgamisms = 4
 
     instances = multiprocessing.Manager().Queue()
     for i in range(nrOfInstances):
         newQWOP = queueManager.QWOP(i)
-        print(newQWOP)
         while (not newQWOP.isAtIntro()):
+            # newQWOP.takeScreenshot()
             pass
-        # cv2.namedWindow(str(newQWOP))
+
         instances.put(newQWOP)
 
     neat = None
@@ -187,22 +193,26 @@ if __name__ == '__main__':
         pool.close()
         pool.join()
 
-        fitnessScores = [result.get() for func, result in results.items()]
+        distances = [result.get()[0] for func, result in results.items()]
+        fitnessScores = [result.get()[1] for func, result in results.items()]
 
         # for i, phenotype in enumerate(neat.phenotypes):
             # fitnessScores.append(testOrganism(neat.phenotypes[0], instances, finishedIndex, len(neat.phenotypes)))
         # fitnessScores = [0] * len(neat.phenotypes)
 
+        for p, d in zip(neat.phenotypes, distances):
+            p.genome.distance = d
+
         print("")
         print("-----------------------------------------------------")
         print("Running epoch")
         neat.phenotypes = neat.epoch(fitnessScores)
-        print(fitnessScores)
+        print(distances)
         print("Generation: " + str(neat.generation))
         # print("Number of innovations: " + str(len(innovations.listOfInnovations)))
         # print("Number of genomes: " + str(len(neat.genomes)))
         print("Number of species: " + str(len(neat.species)))
-        table = PrettyTable(["ID", "age", "members", "max fitness", "adj. fitness", "stag", "neurons", "links", "to spawn"])
+        table = PrettyTable(["ID", "age", "members", "max fitness", "adj. fitness", "avg. distance", "stag", "neurons", "links", "to spawn"])
         for s in neat.species:
             table.add_row([
                 s.ID,                                                       # Species ID
@@ -210,7 +220,7 @@ if __name__ == '__main__':
                 len(s.members),                                             # Nr. of members
                 int(max([m.fitness for m in s.members])),                   # Max fitness
                 "{:1.4f}".format(s.adjustedFitness),                        # Adjusted fitness
-                # "{}".format(max([m.distance for m in s.members])),          # Average distance
+                "{:1.4f}".format(max([m.distance for m in s.members])),          # Average distance
                 # "{}".format(max([m.uniqueKeysPressed for m in s.members])), # Average unique keys
                 s.generationsWithoutImprovement,                            # Stagnation
                 int(np.mean([len(m.neurons)-1894 for m in s.members])),     # Neurons

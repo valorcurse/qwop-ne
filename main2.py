@@ -29,10 +29,12 @@ if __name__ == '__main__':
     fitnessScore = 0
 
     while (not qwop.isAtIntro()):
-        # print(qwop.takeScreenshot())
+        qwop.takeScreenshot()
         # plt.imshow(qwop.image)
         # plt.show()
         pass
+
+    print("Game is at intro.")
 
     keys = [Key.Q, Key.W, Key.O, Key.P]
     for i in range(25):
@@ -43,7 +45,8 @@ if __name__ == '__main__':
         print("\rRun nr: " + str(i), end='')
 
         while (running):           
-
+            qwop.takeScreenshot()
+            
             if (not gameStarted):
                 # if (qwop.isAtIntro()):
                 gameStarted = True

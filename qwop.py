@@ -111,6 +111,7 @@ class QWOP:
 		self.tab.Page.screencastFrame = self.processStreamFrame
 
 		# self.gameIntroTemplate = cv2.resize(cv2.imread('intro.png', 0), (0,0), fx=0.68, fy=0.68)
+		# self.gameIntroTemplate = cv2.imread('intro.png', 0)
 		self.gameIntroTemplate = cv2.imread('intro-small.png', 0)
 		# self.gameLostTemplate = cv2.imread('lost.png', 0)
 		self.gameLostTemplate = cv2.imread('lost-small.png', 0)
@@ -124,12 +125,24 @@ class QWOP:
 
 		self.previousKey = None
 
+		# cv2.namedWindow(str(self.number))
+
 		while self.image is None:
+			# self.takeScreenshot()
 			time.sleep(1)
 
-	def processStreamFrame(self, **kwargs):
+	def showStream(self):
+		cv2.imshow(str(self.number), self.image)
+		cv2.waitKey(20)
+
+	def takeScreenshot(self):
+		print("taking screenshot")
+		kwargs = self.tab.call_method("Page.captureScreenshot", 
+			format="png", quality=25, fromSurface=True)
+
 		imgData = base64.b64decode(kwargs.get('data'))
 		img = cv2.cvtColor(np.array(Image.open(io.BytesIO(imgData))), cv2.COLOR_BGR2RGB)
+		# img = np.array(Image.open(io.BytesIO(imgData)))
 
 		# cv2.imshow("intro", img)
 		# print(kwargs.get('data'))
@@ -137,7 +150,31 @@ class QWOP:
 		# pilImg = Image.open(io.BytesIO(imgData))
 		# img = np.array(pilImg.getdata()).reshape(pilImg.size[1], pilImg.size[0], 4)
 
+		self.image = img[100:-110, 80:-90]
+		
 
+		newImg = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
+		if (not self.grayImage is None):
+			self.imageIsSimilar = compare_ssim(self.grayImage, newImg) > 0.95
+		
+		self.grayImage = newImg
+
+		cv2.imshow("intro", self.grayImage)
+		cv2.waitKey(20)
+		# plt.imshow(self.grayImage)
+		# plt.show()
+
+		newScoreImg = self.grayImage[15:30, 140:275]
+		if (not self.scoreImage is None):
+			self.scoreIsSimilar = compare_ssim(self.scoreImage, newScoreImg) > 0.95
+		self.scoreImage = self.grayImage[15:30, 140:275]
+
+		# print(kwargs.get('sessionId'))
+		# self.tab.Page.screencastFrameAck(sessionId=kwargs.get('sessionId')) 
+
+	def processStreamFrame(self, **kwargs):
+		imgData = base64.b64decode(kwargs.get('data'))
+		img = cv2.cvtColor(np.array(Image.open(io.BytesIO(imgData))), cv2.COLOR_BGR2RGB)
 
 		self.image = img[62:-73, 50:-60]
 
@@ -145,7 +182,11 @@ class QWOP:
 		if (not self.grayImage is None):
 			self.imageIsSimilar = compare_ssim(self.grayImage, newImg) > 0.95
 		
+		
 		self.grayImage = newImg
+
+		# cv2.imshow("intro", self.grayImage)
+		# cv2.waitKey(20)
 
 		newScoreImg = self.grayImage[15:30, 140:275]
 		if (not self.scoreImage is None):
@@ -247,6 +288,7 @@ class QWOP:
 		matchedRegion = image[y1:y2, x1:x2]
 		resizedTemplate = cv2.resize(template, (matchedRegion.shape[1], matchedRegion.shape[0]))
 
+		# print(compare_ssim(resizedTemplate, matchedRegion))
 		return (compare_ssim(resizedTemplate, matchedRegion) >= 0.9)
 
 	def click(self):

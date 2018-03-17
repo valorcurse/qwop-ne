@@ -312,8 +312,8 @@ class CGenome:
 
         neuronDistance = (disjointRate * disjointedNeurons / longestNeurons) + (matchedRate * biasDifference)
 
-        # return linkDistance + neuronDistance
-        return linkDistance
+        return linkDistance + neuronDistance
+        # return linkDistance
 
     def addLink(self, chanceOfLooped, triesToFindLoop, triesToAddLink):
 
