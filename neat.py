@@ -129,7 +129,7 @@ class NEAT:
         inputs = []
         for n in range(numOfInputs):
             print("\rCreating inputs neurons (" + str(n + 1) + "/" + str(numOfInputs) + ")", end='')
-            newInput = innovations.createNewNeuron(0.0, NeuronType.INPUT, -n-1)
+            newInput = innovations.createNewNeuron(0.0, None, None, NeuronType.INPUT, -n-1)
             inputs.append(newInput)
 
         print("")
@@ -137,7 +137,7 @@ class NEAT:
         outputs = []
         for n in range(numOfOutputs):
             print("\rCreating output neurons (" + str(n + 1) + "/" + str(numOfOutputs) + ")", end='')
-            newOutput = innovations.createNewNeuron(1.0, NeuronType.OUTPUT, -numOfInputs-n-1)
+            newOutput = innovations.createNewNeuron(1.0, None, None, NeuronType.OUTPUT, -numOfInputs-n-1)
             outputs.append(newOutput)
 
         print("")

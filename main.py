@@ -24,9 +24,7 @@ import time
 
 import os
 import sys
-# import pickle
 import _pickle as pickle
-# import dill
 import random
 import cProfile
 import argparse
@@ -57,8 +55,10 @@ class LogExceptions(object):
         # It was fine, give a normal answer
         return result
 
-def profiler(phenotype):
-    cProfile.runctx('testOrganism(phenotype)', globals(), locals(), 'prof.prof')
+# def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
+#     # return (0, 0)
+#     r = random.random()
+#     return (r, r * 100)
 
 def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
     running = True
@@ -66,7 +66,8 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
 
     fitnessScore = 0
 
-    displayStream = True
+    displayStream = False
+    windowName = str(phenotype.genome.ID)
 
     qwop = instances.get()
     if (phenotype.toDraw):
@@ -75,9 +76,9 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
         phenotype.toDraw = False
 
     if displayStream:
-        cv2.namedWindow(str(qwop.getNumber()))
+        cv2.namedWindow(windowName)
         pos = windowPositions[qwop.getNumber()]
-        cv2.moveWindow(str(qwop.getNumber()), pos[0], pos[1])
+        cv2.moveWindow(windowName, pos[0], pos[1])
 
     differentKeysPressed = []
     startTime = None
@@ -86,8 +87,8 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
 
         if displayStream:
             # qwop.showStream()
-            cv2.imshow(str(qwop.getNumber()), qwop.getImage())
-            cv2.waitKey(20)
+            cv2.imshow(windowName, qwop.getImage())
+            cv2.waitKey(10)
         
         if (not gameStarted):
             gameStarted = True
@@ -118,7 +119,7 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
     # print("Finished phenotype ("+ str(finishedIndex.value) +"/"+ str(nrOfPhenotypes) +")")
 
     if displayStream:
-        cv2.destroyWindow(str(qwop.getNumber()))
+        cv2.destroyWindow(windowName)
         
     instances.put(qwop)
 
@@ -127,8 +128,8 @@ def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
 
     # fitnessScore = max(0, fitnessScore)
     distance = fitnessScore / 100.0
-    if (fitnessScore > 0):
-        fitnessScore = pow(fitnessScore, len(differentKeysPressed))
+    # if (fitnessScore > 0):
+    #     fitnessScore = pow(fitnessScore, len(differentKeysPressed))
 
     return (distance, fitnessScore)
 
@@ -155,8 +156,10 @@ if __name__ == '__main__':
     queueManager = QueueManager()
     queueManager.start()
 
-    nrOfInstances = 1
-    nrOfOrgamisms = 4
+    nrOfInstances = 3
+    nrOfOrgamisms = 150
+
+    QWOP(-1).closeAllTabs()
 
     instances = multiprocessing.Manager().Queue()
     for i in range(nrOfInstances):
@@ -212,7 +215,7 @@ if __name__ == '__main__':
         # print("Number of innovations: " + str(len(innovations.listOfInnovations)))
         # print("Number of genomes: " + str(len(neat.genomes)))
         print("Number of species: " + str(len(neat.species)))
-        table = PrettyTable(["ID", "age", "members", "max fitness", "adj. fitness", "avg. distance", "stag", "neurons", "links", "to spawn"])
+        table = PrettyTable(["ID", "age", "members", "max fitness", "adj. fitness", "avg. distance", "stag", "neurons", "links", "avg.weight", "avg. bias", "avg. compat.", "to spawn"])
         for s in neat.species:
             table.add_row([
                 s.ID,                                                       # Species ID
@@ -225,9 +228,14 @@ if __name__ == '__main__':
                 s.generationsWithoutImprovement,                            # Stagnation
                 int(np.mean([len(m.neurons)-1894 for m in s.members])),     # Neurons
                 np.mean([len(m.links) for m in s.members]),                 # Links
+                "{:1.4f}".format(np.mean([l.weight for m in s.members for l in m.links])),    # Avg. weight
+                "{:1.4f}".format(np.mean([n.bias for m in s.members for n in m.neurons])),    # Avg. bias
+                "{:1.4f}".format(np.mean([m.calculateCompatibilityDistance(s.leader) for m in s.members])),    # Avg. compatiblity
                 s.numToSpawn])                                              # Nr. of members to spawn
 
         print(table)
+
+        # innovations.printTable()
 
         # Save current generation
         saveFileName = args.saveFolder + "." + str(neat.generation)

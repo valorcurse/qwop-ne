@@ -94,10 +94,10 @@ class QWOP:
 
 		tabs = self.browser.list_tab()
 
-		if not tabs:
-			self.tab = self.browser.new_tab()
-		else:
-			self.tab = tabs[0]
+		# if not tabs:
+		self.tab = self.browser.new_tab()
+		# else:
+			# self.tab = tabs[0]
 
 		# self.tab.debug = True
 
@@ -130,6 +130,11 @@ class QWOP:
 		while self.image is None:
 			# self.takeScreenshot()
 			time.sleep(1)
+
+	def closeAllTabs(self):
+		for tab in self.browser.list_tab():
+			# tab.stop()
+			self.browser.close_tab(tab)
 
 	def showStream(self):
 		cv2.imshow(str(self.number), self.image)
