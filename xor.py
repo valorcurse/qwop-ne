@@ -52,6 +52,11 @@ if __name__ == '__main__':
     highScoreAnswers = []
 
     neat = NEAT(150, 2, 1)
+    neat.newSpeciesTolerance = 3.0
+    neat.maxWeightPerturbation = 1.0
+    neat.chanceToAddNode = 0.001
+    neat.chanceToAddLink = 0.02
+    neat.mutationRate = 0.958
     # pyplot.show()
 
     while True:
@@ -85,24 +90,18 @@ if __name__ == '__main__':
         for index, genome in enumerate(neat.genomes):
             genome.fitness = fitnessScores[index]
 
+
+        # for p in neat.phenotypes:
+        #     for n in p.neurons:
+        #         for l in n.linksIn:
+        #             if l.recurrent:
+        #                 p.draw()
+
         # highestFitness = max(fitnessScores)
         index, highestFitness = max(enumerate(fitnessScores), key=operator.itemgetter(1))
         if (highestFitness > highScore):
             highScore = highestFitness
             highScoreAnswers = answers[index]
-
-            # if (highScore >= 2.9):
-            #     print([n.splitY for n in neat.phenotypes[index].neurons])
-                
-            #     table = PrettyTable(["Weight", "From", "To"])
-            #     for n in neat.phenotypes[index].neurons:
-            #         print("Neuron", n.ID, n.neuronType, n.splitY)
-            #         for l in n.linksIn:
-            #             table.add_row([l.weight, l.fromNeuron.ID, l.toNeuron.ID])
-
-            #     print(table)
-
-            #     neat.phenotypes[index].draw()
 
             if (highScore > 3.9):
                 print("Reached 3.9!")
@@ -159,7 +158,7 @@ if __name__ == '__main__':
         print(table)
         # print([(s.ID, s.numToSpawn, len(s.members)) for s in neat.species])
 
-        neat.phenotypes = neat.epoch(fitnessScores)
+        neat.epoch(fitnessScores)
 
         # time.sleep(1.5)
         

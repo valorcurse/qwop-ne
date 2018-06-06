@@ -87,7 +87,7 @@ options = {
 
 class QWOP:
 
-	def __init__(self, index):
+	def __init__(self, index, multiThreaded=False):
 		self.number = index
 
 		self.browser = pychrome.Browser()
@@ -105,16 +105,19 @@ class QWOP:
 		self.tab.Page.enable()
 		self.tab.Page.navigate(url="http://www.foddy.net/Athletics.html?webgl=true")
 		
-		self.tab.call_method("Page.startScreencast", 
-			format="png", quality=25, everyNthFrame=5,
-			maxWidth=640, maxHeight=400)
-		self.tab.Page.screencastFrame = self.processStreamFrame
+		if (multiThreaded):
+			self.tab.call_method("Page.startScreencast", 
+				format="png", quality=25, everyNthFrame=5,
+				maxWidth=640, maxHeight=400)
+			self.tab.Page.screencastFrame = self.processStreamFrame
 
 		# self.gameIntroTemplate = cv2.resize(cv2.imread('intro.png', 0), (0,0), fx=0.68, fy=0.68)
-		# self.gameIntroTemplate = cv2.imread('intro.png', 0)
-		self.gameIntroTemplate = cv2.imread('intro-small.png', 0)
-		# self.gameLostTemplate = cv2.imread('lost.png', 0)
-		self.gameLostTemplate = cv2.imread('lost-small.png', 0)
+		if multiThreaded:
+			self.gameIntroTemplate = cv2.imread('intro.png', 0)
+			self.gameLostTemplate = cv2.imread('lost.png', 0)
+		else:
+			self.gameIntroTemplate = cv2.imread('intro-small.png', 0)
+			self.gameLostTemplate = cv2.imread('lost-small.png', 0)
 
 		self.grayImage = None
 		self.image = None
@@ -127,36 +130,44 @@ class QWOP:
 
 		# cv2.namedWindow(str(self.number))
 
+		# while True:
 		while self.image is None:
-			# self.takeScreenshot()
-			time.sleep(1)
+			if not multiThreaded:
+				self.takeScreenshot()
+				time.sleep(1)
 
 	def closeAllTabs(self):
 		for tab in self.browser.list_tab():
 			# tab.stop()
-			self.browser.close_tab(tab)
+			try:
+				self.browser.close_tab(tab)
+			except:
+				pass
 
 	def showStream(self):
 		cv2.imshow(str(self.number), self.image)
 		cv2.waitKey(20)
 
 	def takeScreenshot(self):
-		print("taking screenshot")
 		kwargs = self.tab.call_method("Page.captureScreenshot", 
-			format="png", quality=25, fromSurface=True)
+			format="png", quality=1, clip={"x":0, "y":100, "width":1920, "height":1080, "scale":1.0}, fromSurface=True)
+			# params="format=png, quality=1, clip={width:50, height:50}, fromSurface=True")
 
 		imgData = base64.b64decode(kwargs.get('data'))
 		img = cv2.cvtColor(np.array(Image.open(io.BytesIO(imgData))), cv2.COLOR_BGR2RGB)
 		# img = np.array(Image.open(io.BytesIO(imgData)))
 
-		# cv2.imshow("intro", img)
-		# print(kwargs.get('data'))
+		cv2.imshow("intro", img)
+		cv2.waitKey(20)
 
 		# pilImg = Image.open(io.BytesIO(imgData))
 		# img = np.array(pilImg.getdata()).reshape(pilImg.size[1], pilImg.size[0], 4)
 
-		self.image = img[100:-110, 80:-90]
+		# self.image = img[100:-110, 80:-80]
+		self.image = img
 		
+		# cv2.imshow("intro", self.image)
+		# cv2.waitKey(20)
 
 		newImg = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
 		if (not self.grayImage is None):
@@ -164,15 +175,18 @@ class QWOP:
 		
 		self.grayImage = newImg
 
-		cv2.imshow("intro", self.grayImage)
-		cv2.waitKey(20)
+		# cv2.imshow("intro", self.grayImage)
+		# cv2.waitKey(20)
 		# plt.imshow(self.grayImage)
 		# plt.show()
 
-		newScoreImg = self.grayImage[15:30, 140:275]
+		newScoreImg = self.grayImage[15:40, 200:400]
 		if (not self.scoreImage is None):
 			self.scoreIsSimilar = compare_ssim(self.scoreImage, newScoreImg) > 0.95
-		self.scoreImage = self.grayImage[15:30, 140:275]
+		self.scoreImage = newScoreImg
+
+		# cv2.imshow("intro", self.scoreImage)
+		# cv2.waitKey(20)
 
 		# print(kwargs.get('sessionId'))
 		# self.tab.Page.screencastFrameAck(sessionId=kwargs.get('sessionId')) 

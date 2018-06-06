@@ -20,7 +20,7 @@ from genes import innovations
 global innovations
 
 class CSpecies:
-    numGensAllowNoImprovement = 20
+    numGensAllowNoImprovement = 200
 
     def __init__(self, speciesID, leader):
         self.ID = speciesID
@@ -89,7 +89,7 @@ class CSpecies:
             self.stagnant = True
 
 class NEAT:
-    def __init__(self, numberOfGenomes, numOfInputs, numOfOutputs):
+    def __init__(self, numberOfGenomes, numOfInputs, numOfOutputs, fullyConnected=False):
 
         self.genomes = []
         self.phenotypes = []
@@ -103,28 +103,24 @@ class NEAT:
         self.currentGenomeID = 0
 
         self.crossoverRate = 0.7
-        self.maxNumberOfNeuronsPermitted = 20
 
         self.newSpeciesTolerance = 3.0
 
         self.chanceToMutateBias = 0.7
 
         self.chanceToAddNode = 0.2
-        # self.chanceToAddNode = 1.0
-        self.numOfTriesToFindOldLink = 10
 
         self.chanceToAddLink = 0.5
         self.chanceToAddRecurrentLink = 0.05
         self.numOfTriesToFindLoopedLink = 15
         self.numOfTriesToAddLink = 20
 
+        self.chanceToDeleteNeuron = 0.5
+        self.chanceToDeleteLink = 0.5
+
         self.mutationRate = 0.8
         self.probabilityOfWeightReplaced = 0.1
         self.maxWeightPerturbation = 0.5
-        # self.maxWeightPerturbation = 1.5
-
-        self.activationMutationRate = 0.8
-        self.maxActivationPerturbation = 0.8
 
         inputs = []
         for n in range(numOfInputs):
@@ -142,19 +138,28 @@ class NEAT:
 
         print("")
 
+        links = []
+        if fullyConnected:
+            for input in inputs:
+                for output in outputs:
+                    new_link = innovations.createNewLink(input, output, True, 1.0)
+                    links.append(new_link)
+
         inputs.extend(outputs)
-        newGenome = CGenome(self.currentGenomeID, inputs, [], numOfInputs, numOfOutputs)
+        newGenome = CGenome(self.currentGenomeID, inputs, links, numOfInputs, numOfOutputs)
         for i in range(self.populationSize):
+            print("\rCreating genomes (" + str(i + 1) + "/" + str(self.populationSize) + ")", end='')
             self.genomes.append(deepcopy(newGenome))
             self.currentGenomeID += 1
 
+        print("")
+
         self.speciate()
 
-        self.phenotypes = self.epoch([0]*len(self.genomes))
+        self.epoch([0]*len(self.genomes))
 
     def epoch(self, fitnessScores):
         
-
         if (len(fitnessScores) != len(self.genomes)):
             print("Mismatch of scores/genomes size.")
             return
@@ -162,6 +167,8 @@ class NEAT:
         # Set fitness score to their respesctive genome
         for index, genome in enumerate(self.genomes):
             genome.fitness = fitnessScores[index]
+
+        
 
         # print("-----------------------------------")
         self.calculateSpawnAmount()
@@ -175,7 +182,7 @@ class NEAT:
         self.generation += 1
 
         # print([(s.ID, s.numToSpawn, len(s.members)) for s in self.species])
-        return newPhenotypes
+        self.phenotypes = newPhenotypes
 
     def speciate(self):
 
@@ -284,27 +291,21 @@ class NEAT:
                 #     baby.removeLink()
 
 
+                # for i in range(2):
                 if (random.random() < self.chanceToAddNode):
-                    # if (len(baby.neurons) < self.maxNumberOfNeuronsPermitted):
                     baby.addNeuron()
 
-                # if (random.random() < self.chanceToAddNode):
-                    # baby.removeNeuron()
+                if (random.random() < self.chanceToAddNode):
+                    baby.removeRandomNeuron()
 
                 if (random.random() < self.chanceToAddLink):
-                    baby.addLink(self.chanceToAddRecurrentLink, self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
+                    baby.addRandomLink(self.chanceToAddRecurrentLink, self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
 
-                # if (random.random() < self.chanceToAddLink):
-                    # baby.removeLink()
+                if (random.random() < self.chanceToAddLink):
+                    baby.removeRandomLink()
 
-
-                # elif (random.random() < self.mutationRate):
                 baby.mutateWeights(self.mutationRate, self.probabilityOfWeightReplaced, self.maxWeightPerturbation)
-
-                
                 baby.mutateBias(self.chanceToMutateBias, self.probabilityOfWeightReplaced, self.maxWeightPerturbation)
-
-                    # baby.mutateActivationResponse(self.activationMutationRate, self.maxActivationPerturbation)
 
                 baby.links.sort()
                 newPop.append(baby)
@@ -351,7 +352,7 @@ class NEAT:
 
             spawnAmounts.append(toSpawn)
 
-        totalSpawn = sum(spawnAmounts)
+        totalSpawn = max(1, sum(spawnAmounts))
         norm = self.populationSize / totalSpawn
         spawnAmounts = [max(minToSpawn, int(round(n * norm))) for n in spawnAmounts]
         
@@ -414,3 +415,4 @@ class NEAT:
         babyNeurons.sort(key=lambda x: x.splitY, reverse=False)
 
         return CGenome(self.currentGenomeID, babyNeurons, babyLinks, best.inputs, best.outputs)
+

@@ -34,15 +34,44 @@ import stackimpact
 
 windowPositions = [(0, 0), (450, 0), (900, 0), (0, 400), (450, 400)]
 
-def testOrganism(phenotype, qwop):
+# Shortcut to multiprocessing's logger
+def error(msg, *args):
+    return multiprocessing.get_logger().error(msg, *args)
+
+class LogExceptions(object):
+    def __init__(self, callable):
+        self.__callable = callable
+
+    def __call__(self, *args, **kwargs):
+        try:
+            result = self.__callable(*args, **kwargs)
+
+        except Exception as e:
+            # Here we add some debugging help. If multiprocessing's
+            # debugging is on, it will arrange to log the traceback
+            error(traceback.format_exc())
+            # Re-raise the original exception so the Pool worker can
+            # clean up
+            raise
+
+        # It was fine, give a normal answer
+        return result
+
+# def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
+#     # return (0, 0)
+#     r = random.random()
+#     return (r, r * 100)
+
+def testOrganism(phenotype, instances, finishedIndex, nrOfPhenotypes):
     running = True
     gameStarted = False
 
     fitnessScore = 0
 
-    displayStream = True
+    displayStream = False
     windowName = str(phenotype.genome.ID)
 
+    qwop = instances.get()
     if (phenotype.toDraw):
         # qwop.grabImage()
         phenotype.draw(qwop.runningTrack())
@@ -56,7 +85,7 @@ def testOrganism(phenotype, qwop):
     differentKeysPressed = []
     startTime = None
     while (running):
-        qwop.takeScreenshot()
+        # qwop.takeScreenshot()
 
         if displayStream:
             # qwop.showStream()
@@ -87,9 +116,18 @@ def testOrganism(phenotype, qwop):
             if (not predicted in differentKeysPressed):
                 differentKeysPressed.append(predicted)
 
+    finishedIndex.value += 1
+    print("\rFinished phenotype ("+ str(finishedIndex.value) +"/"+ str(nrOfPhenotypes) +")", end='')
+    # print("Finished phenotype ("+ str(finishedIndex.value) +"/"+ str(nrOfPhenotypes) +")")
+
     if displayStream:
         cv2.destroyWindow(windowName)
         
+    instances.put(qwop)
+
+    # phenotype.genome.distance = fitnessScore
+    # phenotype.genome.uniqueKeysPressed = differentKeysPressed
+
     # fitnessScore = max(0, fitnessScore)
     distance = fitnessScore / 100.0
     if (fitnessScore > 0):
@@ -109,17 +147,34 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    agent = stackimpact.start(
+    agent_key = 'ca58b309533505b5b938481c3b2ba08301bc7e9c',
+    app_name = 'MyPythonApp')
+
     saveDirectory = "saves/" + args.saveFolder
     if not os.path.exists(saveDirectory):
         os.makedirs(saveDirectory)
 
     sys.setrecursionlimit(10000)
+    # multiprocessing.set_start_method('spawn')
+    multiprocessing.log_to_stderr()
+    QueueManager.register("QWOP", QWOP)
+    queueManager = QueueManager()
+    queueManager.start()
 
+    nrOfInstances = 4
     nrOfOrgamisms = 50
 
     QWOP(-1).closeAllTabs()
 
-    qwop = QWOP(0)
+    instances = multiprocessing.Manager().Queue()
+    for i in range(nrOfInstances):
+        newQWOP = queueManager.QWOP(i)
+        while (not newQWOP.isAtIntro()):
+            # newQWOP.takeScreenshot()
+            pass
+
+        instances.put(newQWOP)
 
     neat = None
     if (args.load):
@@ -136,14 +191,19 @@ if __name__ == '__main__':
     stillRunning = True
     while stillRunning:
         results = {}
+        # randomPhenotype = random.choice(neat.phenotypes)
+        # randomPhenotype.toDraw = True
 
-        finishedIndex = 0
+        pool = Pool(nrOfInstances)
+        finishedIndex = multiprocessing.Manager().Value('i', 0)
         for i, phenotype in enumerate(neat.phenotypes):
-            results[i] = testOrganism(phenotype, qwop)
-            finishedIndex += 1
-            print("\rFinished phenotype ("+ str(finishedIndex) +"/"+ str(len(neat.phenotypes)) +")", end='')
+            results[i] = pool.apply_async(testOrganism, (phenotype, instances, finishedIndex, len(neat.phenotypes)))
+            # results[i] = pool.apply_async(LogExceptions(testOrganism), (phenotype, instances, finishedIndex, len(neat.phenotypes)))
+        pool.close()
+        pool.join()
 
-        distances, fitnessScores = results
+        distances = [result.get()[0] for func, result in results.items()]
+        fitnessScores = [result.get()[1] for func, result in results.items()]
 
         for p, d in zip(neat.phenotypes, distances):
             p.genome.distance = d
