@@ -141,38 +141,43 @@ class CNeuralNet:
         pyplot.pause(0.5)
         pyplot.show()
 
-    # def sigmoid(self, x):
-        # return 1.0 / (1.0 + math.exp(-x))
+    def sigmoid(self, x):
+        return 1.0 / (1.0 + math.exp(-x))
 
     # def sigmoid(self, z):
-        # z = max(-60.0, min(60.0, 5.0 * z))
-        # return 1.0 / (1.0 + math.exp(-z))
+    #     z = max(-60.0, min(60.0, 5.0 * z))
+    #     return 1.0 / (1.0 + math.exp(-z))
 
     # Actually tanh
     def sigmoid(self, x):
         return (math.exp(x) - math.exp(-x))/(math.exp(x) + math.exp(-x))
 
-    def update(self, inputs):
-        # outputs = []
+    def calcOutput(self, neuron):
+        linksIn = neuron.linksIn
+        if (len(linksIn) > 0):
+            return self.sigmoid(neuron.bias + np.sum([self.calcOutput(linkIn.fromNeuron) * linkIn.weight for linkIn in linksIn]))
+        else:
+            return neuron.output
 
-        # table = PrettyTable(["Type", "ID", "output"])
-        
+    def updateRecursively(self, inputs):
+        inputNeurons = [neuron for neuron in self.neurons if neuron.neuronType == NeuronType.INPUT]
+        for value, neuron in zip(inputs, inputNeurons):
+            neuron.output = value
+
+        outputNeurons = [neuron for neuron in self.neurons if neuron.neuronType == NeuronType.OUTPUT]
+
+        return [self.calcOutput(outputNeuron) for outputNeuron in outputNeurons]
+
+    def update(self, inputs):
         # Set input neurons values
         inputNeurons = [neuron for neuron in self.neurons if neuron.neuronType == NeuronType.INPUT]
         for value, neuron in zip(inputs, inputNeurons):
             neuron.output = value
-            # table.add_row([neuron.neuronType, neuron.ID, neuron.output])
 
         for currentNeuron in self.neurons[len(inputNeurons):]:
-            neuronSum = []
-            for link in currentNeuron.linksIn:
-                neuronSum.append(link.fromNeuron.output * link.weight)
-
-            currentNeuron.output = self.sigmoid(currentNeuron.bias + sum(neuronSum))
-            # table.add_row([currentNeuron.neuronType, currentNeuron.ID, currentNeuron.output])
-
-            # if (currentNeuron.neuronType == NeuronType.OUTPUT):
-                # outputs.append(currentNeuron.output)
+            linksIn = currentNeuron.linksIn
+            output = np.sum([link.fromNeuron.output * link.weight for link in linksIn])
+            currentNeuron.output = self.sigmoid(currentNeuron.bias + output)
 
         # print(table)
         return [n.output for n in self.neurons if n.neuronType == NeuronType.OUTPUT]

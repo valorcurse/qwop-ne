@@ -15,6 +15,36 @@ import matplotlib.patches as patches
 
 from prettytable import PrettyTable
 
+class Phase(Enum):
+    COMPLEXIFYING = 0
+    PRUNING = 1
+
+class SpeciationType(Enum):
+    COMPATIBILITY_DISTANCE = 0
+    NOVELTY = 1
+
+class MutationRates:
+    def __init__(self):
+        self.crossoverRate = 0.7
+
+        self.newSpeciesTolerance = 4.0
+
+        self.chanceToMutateBias = 0.7
+
+        self.chanceToAddNode = 0.15
+
+        self.chanceToAddLink = 0.3
+        self.chanceToAddRecurrentLink = 0.05
+
+        self.chanceToDeleteNeuron = 0.5
+        self.chanceToDeleteLink = 0.5
+
+        self.mutationRate = 0.8
+        self.probabilityOfWeightReplaced = 0.1
+        self.maxWeightPerturbation = 0.5
+
+        self.mpcMargin = 20
+
 class InnovationType(Enum):
     NEURON = 0
     LINK = 1
@@ -171,7 +201,8 @@ class CGenome:
                 newNeuron = innovations.createNewNeuron(1.0, NeuronType.OUTPUT, -inputs-n-1)
                 self.neurons.append(newNeuron)
 
-        self.fitness = -1000.0
+        self.fitness: float = 0.0
+        self.novelty: float = 0.0
 
         # For printing
         self.distance = 0
@@ -188,13 +219,11 @@ class CGenome:
         return [l for l in self.links if l.fromNeuron == neuron]
 
     def isNeuronValid(self, neuron):
-        # linksIn = [l for l in self.links if l.toNeuron.ID == ID]
-        # linksOut = [l for l in self.links if l.fromNeuron.ID == ID]
         return len(self.getLinksIn(neuron)) >= 1 or len(self.getLinksOut(neuron)) >= 1
 
     def calculateCompatibilityDistance(self, other):
         disjointRate = 1.0
-        matchedRate = 1.0
+        matchedRate = 0.4
 
         disjointedLinks = 0.0
         weightDifferences = []
@@ -212,16 +241,18 @@ class CGenome:
 
 
 
-            if ((selfLink is None or not selfLink.enabled) or (otherLink is None or not otherLink.enabled)):
+            if ((selfLink is None) or (otherLink is None)):
                 disjointedLinks += 1.0
             else:
                 weightDifferences.append(math.fabs(selfLink.weight - otherLink.weight))
-
+        
         longestLinks = max(1.0, max(len(other.links), len(self.links)))
         # longestLinks = 1.0 if longestLinks <= 20 else longestLinks
-        weightDifference = 0.0 if len(weightDifferences) == 0 else np.mean(weightDifferences)
+        # weightDifference = 0.0 if len(weightDifferences) == 0 else np.mean(weightDifferences)
+        weightDifference = 0.0 if len(weightDifferences) == 0 else np.sum(weightDifferences)
 
         linkDistance = (disjointRate * disjointedLinks / longestLinks) + weightDifference * matchedRate
+        # print(linkDistance)
 
         disjointedNeurons = 0.0
         biasDifferences = []
@@ -256,48 +287,50 @@ class CGenome:
         return linkDistance + neuronDistance
         # return linkDistance
 
-    def addRandomLink(self, chanceOfLooped, triesToFindLoop, triesToAddLink):
+    def addRandomLink(self, chanceOfLooped):
 
         fromNeuron = None
         toNeuron = None
         recurrent = False
 
         # Add recurrent link
-        if (random.random() < chanceOfLooped and len(self.neurons) > (self.inputs + self.outputs)):
-            possibleNeurons = [n for n in self.neurons
-                if not n.recurrent and n.neuronType == NeuronType.HIDDEN]
+        # if (random.random() < chanceOfLooped and len(self.neurons) > (self.inputs + self.outputs)):
+        #     possibleNeurons = [n for n in self.neurons
+        #         if not n.recurrent and n.neuronType == NeuronType.HIDDEN]
 
-            if (len(possibleNeurons) == 0):
-                return
+        #     if (len(possibleNeurons) == 0):
+        #         return
 
-            loopNeuron = random.choice(possibleNeurons)
-            fromNeuron = toNeuron = loopNeuron
-            recurrent = loopNeuron.recurrent = True
+        #     loopNeuron = random.choice(possibleNeurons)
+        #     fromNeuron = toNeuron = loopNeuron
+        #     recurrent = loopNeuron.recurrent = True
 
-        else:
+        # else:
 
-            keepLoopRunning = True
-            fromNeurons = [neuron for neuron in self.neurons
-                           if (neuron.neuronType in [NeuronType.INPUT, NeuronType.HIDDEN])]
+        keepLoopRunning = True
+        fromNeurons = [neuron for neuron in self.neurons
+                       if (neuron.neuronType in [NeuronType.INPUT, NeuronType.HIDDEN])]
 
-            toNeurons = [neuron for neuron in self.neurons
-                         if (neuron.neuronType in [NeuronType.OUTPUT, NeuronType.HIDDEN])]
+        toNeurons = [neuron for neuron in self.neurons
+                     if (neuron.neuronType in [NeuronType.OUTPUT, NeuronType.HIDDEN])]
+        
+        triesToAddLink = 10  
+        while (triesToAddLink > 0):
             
-            while (triesToAddLink):
-                
-                fromNeuron = random.choice(fromNeurons)
-                toNeuron = random.choice(toNeurons)
+            fromNeuron = random.choice(fromNeurons)
+            toNeuron = random.choice(toNeurons)
 
-                for l in self.links:
-                    if (l.fromNeuron.ID == fromNeuron.ID) and (l.toNeuron.ID == toNeuron.ID):
-                        return
+            # If link already exists
+            alreadyExists = next(
+                (l for l in self.links if (l.fromNeuron.ID == fromNeuron.ID) and (l.toNeuron.ID == toNeuron.ID)), 
+                None)
 
-                if (fromNeuron.ID != toNeuron.ID and fromNeuron.splitY < toNeuron.splitY):
-                    break
-                else:
-                    fromNeuron = toNeuron = None
+            if (not alreadyExists and fromNeuron.ID != toNeuron.ID and fromNeuron.splitY < toNeuron.splitY):
+                break
+            else:
+                fromNeuron = toNeuron = None
 
-                triesToAddLink -= 1
+            triesToAddLink -= 1
 
         if (fromNeuron == None or toNeuron == None):
             return
@@ -409,12 +442,16 @@ class CGenome:
 
     def mutateWeights(self, mutationRate, replacementProbability, maxWeightPerturbation):
             for link in self.links:
+                if (random.random() > 0.25):
+                    continue
+
                 if (random.random() < mutationRate):
                     link.weight += random.gauss(0.0, maxWeightPerturbation)
                     link.weight = min(30.0, max(-30.0, link.weight))
 
-                elif (random.random() < replacementProbability):
-                    link.weight = random.gauss(0.0, 1.0)
+                # elif (random.random() < replacementProbability):
+                else:
+                    link.weight = random.gauss(0.0, maxWeightPerturbation)
 
 
     def mutateBias(self, mutationRate, replacementProbability, maxWeightPerturbation):
@@ -426,6 +463,41 @@ class CGenome:
 
             elif (random.random() < replacementProbability):
                 n.bias = random.gauss(0.0, maxWeightPerturbation)
+
+    def mutate(self, phase, mutationRates):
+        # div = max(1,(self.chanceToAddNode*2 + self.chanceToAddLink*2))
+        # r = random.random()
+        # if r < (self.chanceToAddNode/div):
+        #     baby.addNeuron()
+        # elif r < ((self.chanceToAddNode + self.chanceToAddNode)/div):
+        #     baby.removeNeuron()
+        # elif r < ((self.chanceToAddNode + self.chanceToAddNode +
+        #            self.chanceToAddLink)/div):
+        #     baby.addLink(self.chanceToAddRecurrentLink,
+        #              self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
+        # elif r < ((self.chanceToAddNode + self.chanceToAddNode +
+        #            self.chanceToAddLink + self.chanceToAddLink)/div):
+        #     baby.removeLink()
+
+
+        if phase == Phase.COMPLEXIFYING:
+            if (random.random() < mutationRates.chanceToAddNode):
+                self.addNeuron()
+
+            if (random.random() < mutationRates.chanceToAddLink):
+                self.addRandomLink(mutationRates.chanceToAddRecurrentLink)
+
+        elif phase == Phase.PRUNING:
+            if (random.random() < mutationRates.chanceToAddNode):
+                self.removeRandomNeuron()
+
+            if (random.random() < mutationRates.chanceToAddLink):
+                self.removeRandomLink()
+
+        self.mutateWeights(mutationRates.mutationRate, mutationRates.probabilityOfWeightReplaced, mutationRates.maxWeightPerturbation)
+        self.mutateBias(mutationRates.chanceToMutateBias, mutationRates.probabilityOfWeightReplaced, mutationRates.maxWeightPerturbation)
+
+        self.links.sort()
 
     def createPhenotype(self):
         phenotypeNeurons = []

@@ -16,37 +16,39 @@ import genes
 from genes import NeuronType
 from genes import CGenome
 from genes import innovations
+from genes import MutationRates
+from genes import Phase
+from genes import SpeciationType
 
 global innovations
 
 class CSpecies:
-    numGensAllowNoImprovement = 200
+    numGensAllowNoImprovement = 40
 
-    def __init__(self, speciesID, leader):
-        self.ID = speciesID
+    def __init__(self, speciesID: int, leader: CGenome):
+        self.ID: int = speciesID
 
-        self.members = [leader]
+        self.members: CGenome = [leader]
 
-        self.age = 0
-        self.numToSpawn = 0
+        self.age: int = 0
+        self.numToSpawn: int = 0
 
-        self.leader = leader
+        self.leader: CGenome = leader
 
-        self.youngAgeThreshold = 10
-        self.youngAgeBonus = 1.5
-        self.oldAgeThreshold = 50
-        self.oldAgePenalty = 0.5
+        self.youngAgeThreshold: int = 10
+        self.youngAgeBonus: float = 1.5
+        self.oldAgeThreshold: int = 50
+        self.oldAgePenalty: float = 0.5
 
-        self.highestFitness = 0.0
-        self.adjustedFitness = 0.0
-        self.generationsWithoutImprovement = 0
+        self.highestFitness: float = 0.0
+        self.generationsWithoutImprovement: int = 0
 
         self.stagnant = False
 
-    def __contains__(self, key):
+    def __contains__(self, key: int):
         return key.ID in [m.ID for m in self.members]
 
-    def isMember(self, genome):
+    def isMember(self, genome: CGenome):
         # print("members:", [m.ID for m in self.members], "genome:", genome.ID, "->", (genome.ID in [m.ID for m in self.members]))
         return (genome.ID in [m.ID for m in self.members])
 
@@ -57,21 +59,24 @@ class CSpecies:
     def spawn(self):
         return random.choice(self.members)
 
-    def adjustFitnesses(self, minFitness, maxFitness):
-        fitnessRange = max(1.0, maxFitness - minFitness)
+    def adjustFitnesses(self):
+        # fitnessRange = max(1.0, maxFitness - minFitness)
         
         # highestFitness = round(highestFitness, 1)
 
-        avgMemberFitness = sum([m.fitness for m in self.members])/len(self.members)
-        newAdjustedFitness = (avgMemberFitness - minFitness) / fitnessRange
+        # avgMemberFitness = sum([m.fitness for m in self.members])/len(self.members)
+        # newAdjustedFitness = (avgMemberFitness - minFitness) / fitnessRange
 
-        if self.age <= self.youngAgeThreshold:
-            newAdjustedFitness *= self.youngAgeBonus
+        for m in self.members:
+            m.adjustedFitness = m.fitness / len(self.members)
 
-        if self.age >= self.oldAgeThreshold:
-            newAdjustedFitness *= self.oldAgePenalty
+            if self.age <= self.youngAgeThreshold:
+                m.adjustedFitness *= self.youngAgeBonus
 
-        self.adjustedFitness = newAdjustedFitness
+            if self.age >= self.oldAgeThreshold:
+                m.adjustedFitness *= self.oldAgePenalty
+
+        # self.adjustedFitness = newAdjustedFitness
 
     def becomeOlder(self):
         self.age += 1
@@ -89,38 +94,24 @@ class CSpecies:
             self.stagnant = True
 
 class NEAT:
-    def __init__(self, numberOfGenomes, numOfInputs, numOfOutputs, fullyConnected=False):
 
-        self.genomes = []
-        self.phenotypes = []
-        self.species = []
-        self.speciesNumber = 0
+    def __init__(self, numberOfGenomes, numOfInputs, numOfOutputs, mutationRates=MutationRates(), fullyConnected=False):
 
-        self.populationSize = numberOfGenomes
+        self.genomes: CGenome = []
+        self.phenotypes: CNeuralNet = []
+        self.species: CSpecies = []
+        self.speciesNumber: int = 0
 
-        self.generation = 0
+        self.populationSize: int = numberOfGenomes
 
-        self.currentGenomeID = 0
+        self.generation: int = 0
 
-        self.crossoverRate = 0.7
+        self.currentGenomeID: int = 0
 
-        self.newSpeciesTolerance = 3.0
+        self.phase: Phase = Phase.COMPLEXIFYING
+        self.speciationType: SpeciationType = SpeciationType.NOVELTY
 
-        self.chanceToMutateBias = 0.7
-
-        self.chanceToAddNode = 0.2
-
-        self.chanceToAddLink = 0.5
-        self.chanceToAddRecurrentLink = 0.05
-        self.numOfTriesToFindLoopedLink = 15
-        self.numOfTriesToAddLink = 20
-
-        self.chanceToDeleteNeuron = 0.5
-        self.chanceToDeleteLink = 0.5
-
-        self.mutationRate = 0.8
-        self.probabilityOfWeightReplaced = 0.1
-        self.maxWeightPerturbation = 0.5
+        self.mutationRates: MutationRates = mutationRates
 
         inputs = []
         for n in range(numOfInputs):
@@ -154,26 +145,59 @@ class NEAT:
 
         print("")
 
-        self.speciate()
 
+        # mpc = self.calculateMPC()
+        mpc = 100
+        self.mpcThreshold: int = mpc + mutationRates.mpcMargin
+        self.lowestMPC: int = mpc
+        self.mpcStagnation: int = 0
+        
+        print("mpc", mpc)
+        print("mpc threshold", self.mpcThreshold)
+
+        self.speciate()
         self.epoch([0]*len(self.genomes))
 
-    def epoch(self, fitnessScores):
+
+    def calculateMPC(self):
+        allMutations = [[n for n in g.neurons] + [l for l in g.links] for g in self.genomes]
+        nrOfMutations = len([item for sublist in allMutations for item in sublist])
+        return (nrOfMutations / len(self.genomes))
+
+    def epoch(self, fitnessScores: float, novelty: float = None):
         
-        if (len(fitnessScores) != len(self.genomes)):
-            print("Mismatch of scores/genomes size.")
-            return
+        if novelty is not None:
+            for index, genome in enumerate(self.genomes):
+                genome.novelty = novelty[index]
 
         # Set fitness score to their respesctive genome
         for index, genome in enumerate(self.genomes):
-            genome.fitness = fitnessScores[index]
+            genome.fitness = max(1, fitnessScores[index])
 
-        
-
-        # print("-----------------------------------")
         self.calculateSpawnAmount()
         self.reproduce()
+        
         self.speciate()
+
+        mpc = self.calculateMPC()
+
+        if self.phase == Phase.PRUNING:
+            if mpc < self.lowestMPC:
+                self.lowestMPC = mpc
+                self.mpcStagnation = 0
+            else:
+                self.mpcStagnation += 1
+
+            if self.mpcStagnation >= 10:
+                self.phase = Phase.COMPLEXIFYING
+                self.mpcThreshold = mpc + self.mutationRates.mpcMargin
+
+        elif self.phase == Phase.COMPLEXIFYING:
+            if mpc >= self.mpcThreshold:
+                self.phase = Phase.PRUNING
+                self.mpcStagnation = 0
+                self.lowestMPC = mpc
+
 
         newPhenotypes = []
         for genome in self.genomes:
@@ -181,23 +205,19 @@ class NEAT:
 
         self.generation += 1
 
-        # print([(s.ID, s.numToSpawn, len(s.members)) for s in self.species])
         self.phenotypes = newPhenotypes
 
     def speciate(self):
-
-        # print([(s.ID, s.best().ID, s.best().fitness) for s in self.species])
-
         # Find best leader for species from the new population
         unspeciated = list(range(0, len(self.genomes)))
         for s in self.species:
+            compareMember = random.choice(s.members)
             s.members = []
             candidates = []
             for i in unspeciated:
-                g = self.genomes[i]
-                # print(g)
-                distance = g.calculateCompatibilityDistance(s.leader)
-                if (distance < self.newSpeciesTolerance):
+                genome = self.genomes[i]
+                distance = genome.calculateCompatibilityDistance(compareMember)
+                if (distance < self.mutationRates.newSpeciesTolerance):
                     candidates.append((distance, i))
 
             _, bestCandidate = min(candidates, key=lambda x: x[0])
@@ -205,12 +225,12 @@ class NEAT:
             s.leader = self.genomes[bestCandidate]
             s.members.append(s.leader)
             unspeciated.remove(bestCandidate)
-        
+
         # Distribute genomes to their closest species
         for i in unspeciated:
             genome = self.genomes[i]
 
-            closestDistance = self.newSpeciesTolerance
+            closestDistance = self.mutationRates.newSpeciesTolerance
             closestSpecies = None
             for s in self.species:
                 distance = genome.calculateCompatibilityDistance(s.leader)
@@ -223,14 +243,16 @@ class NEAT:
                 closestSpecies.members.append(genome)
 
             else: # Else create a new species
+                # random: float = random.random()
+
+                # if (random <= 0.1):
                 self.speciesNumber += 1
                 self.species.append(CSpecies(self.speciesNumber, genome))
+                # else:
+                    
 
-        # self.species = [s[0] for s in existingSpecies]
-        # print([s.numToSpawn for s in self.species])
 
     def reproduce(self):
-        # print([s.numToSpawn for s in self.species])
         newPop = []
         for s in self.species:
             numToSpawn = s.numToSpawn
@@ -238,15 +260,11 @@ class NEAT:
             members = deepcopy(s.members)
             members.sort(reverse=True, key=lambda x: x.fitness)
 
-            # print([g.fitness for g in members])
-            # print(s.ID, "Best of members:", [(g.ID, g.fitness) for g in members[:2]])
             # Grabbing the top 2 performing genomes
             for topMember in members[:2]:
                 newPop.append(topMember)
                 members.remove(topMember)
                 numToSpawn -= 1
-
-
 
             # Only use the survival threshold fraction to use as parents for the next generation.
             cutoff = int(math.ceil(0.2 * len(members)))
@@ -257,107 +275,89 @@ class NEAT:
             if (numToSpawn <= 0 or len(members) <= 0):
                 continue
 
-            # print("Spawning for species:", s.ID, "| Amount:", numToSpawn)
             for i in range(numToSpawn):
                 baby = None
 
-                # if (len(members) == 1 or random.random() > self.crossoverRate):
-                if (random.random() > self.crossoverRate):
-                    # baby = copy(s.spawn())
+                if (self.phase == Phase.PRUNING or random.random() > self.mutationRates.crossoverRate):
                     baby = deepcopy(random.choice(members))
                 else:
-                    # g1 = s.spawn()
-                    g1 = random.choice(members)
-                    # possibleMates = [g for g in members if g.ID != g1.ID]
-                    g2 = random.choice(members)
+                    # g1 = random.choice(members)
+                    # g2 = random.choice(members)
+                    
+                    # Tournament selection
+                    g1 = sorted(random.sample(members, 5), key=lambda x: x.fitness)[0]
+                    g2 = sorted(random.sample(members, 5), key=lambda x: x.fitness)[0]
+                    
                     baby = self.crossover(g1, g2)
 
                 self.currentGenomeID += 1
                 baby.ID = self.currentGenomeID
 
+                baby.mutate(Phase.COMPLEXIFYING, self.mutationRates)
+                # baby.mutate(self.phase, self.mutationRates)
 
-                # div = max(1,(self.chanceToAddNode*2 + self.chanceToAddLink*2))
-                # r = random.random()
-                # if r < (self.chanceToAddNode/div):
-                #     baby.addNeuron()
-                # elif r < ((self.chanceToAddNode + self.chanceToAddNode)/div):
-                #     baby.removeNeuron()
-                # elif r < ((self.chanceToAddNode + self.chanceToAddNode +
-                #            self.chanceToAddLink)/div):
-                #     baby.addLink(self.chanceToAddRecurrentLink,
-                #              self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
-                # elif r < ((self.chanceToAddNode + self.chanceToAddNode +
-                #            self.chanceToAddLink + self.chanceToAddLink)/div):
-                #     baby.removeLink()
-
-
-                # for i in range(2):
-                if (random.random() < self.chanceToAddNode):
-                    baby.addNeuron()
-
-                if (random.random() < self.chanceToAddNode):
-                    baby.removeRandomNeuron()
-
-                if (random.random() < self.chanceToAddLink):
-                    baby.addRandomLink(self.chanceToAddRecurrentLink, self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
-
-                if (random.random() < self.chanceToAddLink):
-                    baby.removeRandomLink()
-
-                baby.mutateWeights(self.mutationRate, self.probabilityOfWeightReplaced, self.maxWeightPerturbation)
-                baby.mutateBias(self.chanceToMutateBias, self.probabilityOfWeightReplaced, self.maxWeightPerturbation)
-
-                baby.links.sort()
                 newPop.append(baby)
 
         self.genomes = newPop
-        # print([s.numToSpawn for s in self.species])
 
     def calculateSpawnAmount(self):
         # Remove stagnant species
-        for s in self.species:
-            s.becomeOlder()
+        if self.phase == Phase.COMPLEXIFYING:
+            for s in self.species:
+                s.becomeOlder()
 
-            if s.stagnant:
-                self.species.remove(s)
+                if s.stagnant:
+                    self.species.remove(s)
         
         # Adjust species fitness
-        allFitnesses = [m.fitness for spc in self.species for m in spc.members]
-        minFitness = min(allFitnesses) if len(allFitnesses) != 0 else 0.0
-        maxFitness = max(allFitnesses) if len(allFitnesses) != 0 else 0.0
+        # allFitnesses = [m.fitness for spc in self.species for m in spc.members]
+        # minFitness = min(allFitnesses) if len(allFitnesses) != 0 else 0.0
+        # maxFitness = max(allFitnesses) if len(allFitnesses) != 0 else 0.0
         for s in self.species:
-            s.adjustFitnesses(minFitness, maxFitness)
-
-        minToSpawn = 2
-        sumFitness = sum(s.adjustedFitness for s in self.species)
-        spawnAmounts = []
+            s.adjustFitnesses()
         
-        for s in self.species:            
-            if (sumFitness > 0):
-                size = max(minToSpawn, s.adjustedFitness / sumFitness * self.populationSize)
-            else:
-                size = minToSpawn
+        allFitnesses = sum([m.adjustedFitness for spc in self.species for m in spc.members])
+        
 
-            previousSize = len(s.members)
-            sizeDifference = (size - previousSize) * 0.5
-            roundedSize = int(round(sizeDifference))
-            toSpawn = previousSize
+
+        print("allFitnesses", allFitnesses)
+        for s in self.species:
+            sumOfFitnesses = sum([m.adjustedFitness for m in s.members])
+
+
+            portionOfFitness = 1 if allFitnesses == 0 and sumOfFitnesses == 0 else sumOfFitnesses/allFitnesses
+            s.numToSpawn = int(portionOfFitness * self.populationSize)
+        
+        # minToSpawn = 2
+        # sumFitness = sum(s.adjustedFitness for s in self.species)
+        # spawnAmounts = []
+        
+        # for s in self.species:            
+        #     if (sumFitness > 0):
+        #         size = max(minToSpawn, s.adjustedFitness / sumFitness * self.populationSize)
+        #     else:
+        #         size = minToSpawn
+
+        #     previousSize = len(s.members)
+        #     sizeDifference = (size - previousSize) * 0.5
+        #     roundedSize = int(round(sizeDifference))
+        #     toSpawn = previousSize
             
-            if abs(roundedSize) > 0:
-                toSpawn += roundedSize
-            elif sizeDifference > 0:
-                toSpawn += 1
-            elif sizeDifference < 0:
-                toSpawn -= 1
+        #     if abs(roundedSize) > 0:
+        #         toSpawn += roundedSize
+        #     elif sizeDifference > 0:
+        #         toSpawn += 1
+        #     elif sizeDifference < 0:
+        #         toSpawn -= 1
 
-            spawnAmounts.append(toSpawn)
+        #     spawnAmounts.append(toSpawn)
 
-        totalSpawn = max(1, sum(spawnAmounts))
-        norm = self.populationSize / totalSpawn
-        spawnAmounts = [max(minToSpawn, int(round(n * norm))) for n in spawnAmounts]
+        # totalSpawn = max(1, sum(spawnAmounts))
+        # norm = self.populationSize / totalSpawn
+        # spawnAmounts = [max(minToSpawn, int(round(n * norm))) for n in spawnAmounts]
         
-        for spawnAmount, species in zip(spawnAmounts, self.species):
-            species.numToSpawn = spawnAmount
+        # for spawnAmount, species in zip(spawnAmounts, self.species):
+        #     species.numToSpawn = spawnAmount
 
     def crossover(self, mum, dad):
         
@@ -387,24 +387,18 @@ class NEAT:
             mumLink = deepcopy(mumDict.get(i))
             dadLink = deepcopy(dadDict.get(i))
             
-            # print(mumLink.innovationID if mumLink else "None", dadLink.innovationID if dadLink else "None")
-            
             if (mumLink is None):
                 if (best == dad):
-                    # print("mum is None and best is dad")
                     babyLinks.append(dadLink)
 
             elif (dadLink is None):
                 if (best == mum):
-                    # print("dad is None and best is mum")
                     babyLinks.append(mumLink)
 
             else:
                 babyLinks.append(random.choice([mumLink, dadLink]))
 
-        # print("")
         for link in babyLinks:
-            # print(link.innovationID)
 
             if (link.fromNeuron.innovationID not in [n.innovationID for n in babyNeurons]):
                 babyNeurons.append(deepcopy(link.fromNeuron))

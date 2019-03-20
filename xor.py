@@ -1,5 +1,6 @@
 from genes import innovations
 from neat import NEAT
+from genes import MutationRates
 
 global innovations
 
@@ -15,6 +16,7 @@ import multiprocessing
 from multiprocessing import Pool, Queue, Value
 import multiprocessing.managers as managers
 
+import cProfile
 import operator
 
 xor_inputs = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]]
@@ -22,7 +24,7 @@ xor_inputs = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]]
 xor_outputs = [0.0, 1.0, 1.0, 0.0]
 
 
-def testOrganism(phenotype, finishedIndex, nrOfPhenotypes):
+def testOrganism(phenotype, finishedIndex, nrOfPhenotypes, outputs):
     
     # print("")
     # print("Phenotype", phenotype.ID)
@@ -30,20 +32,27 @@ def testOrganism(phenotype, finishedIndex, nrOfPhenotypes):
     fitnessScore = 4.0
     answers = []
     for xi, xo in zip(xor_inputs, xor_outputs):
-        output = phenotype.update(xi)
+        # output = phenotype.update(xi)
+        output = phenotype.updateRecursively(xi)
 
-        # fitnessScore -= (output[0] - xo) ** 2
+        fitnessScore -= (output[0] - xo) ** 2
 
         # if phenotype.toDraw:
             # print("Drawing phenotype", phenotype.ID)
             # phenotype.draw()
             
-        fitnessScore -= math.fabs(xo - output[0])
+        # fitnessScore -= math.fabs(xo - output[0])
         answers.append(output)
 
     # phenotype.toDraw = False
     fitnessScore = round(fitnessScore, 5)
-    return (fitnessScore, answers)
+    outputs.append((fitnessScore, answers))
+    # return (fitnessScore, answers)
+
+def profileOrganism(phenotype, finishedIndex, nrOfPhenotypes):
+    outputs = []
+    cProfile.runctx('testOrganism(phenotype, finishedIndex, nrOfPhenotypes, outputs)', globals(), locals(), 'prof.prof')
+    return outputs[0]
 
 if __name__ == '__main__':
     print("Creating NEAT object")
@@ -51,13 +60,21 @@ if __name__ == '__main__':
     highScore = 0.0
     highScoreAnswers = []
 
-    neat = NEAT(150, 2, 1)
-    neat.newSpeciesTolerance = 3.0
-    neat.maxWeightPerturbation = 1.0
-    neat.chanceToAddNode = 0.001
-    neat.chanceToAddLink = 0.02
-    neat.mutationRate = 0.958
-    # pyplot.show()
+    neat = NEAT(300, 2, 1)
+    mutationRates = MutationRates()
+    mutationRates.newSpeciesTolerance = 3.0
+    mutationRates.maxWeightPerturbation = 0.1
+    mutationRates.chanceToAddNode = 0.1
+    mutationRates.chanceToAddLink = 0.4
+    
+    mutationRates.chanceToMutateBias = 0.4
+    mutationRates.mutationRate = 0.75
+    mutationRates.crossoverRate = 0.75
+    
+    mutationRates.mpcStagnation = 10
+    mutationRates.mpcMargin = 50
+
+    neat = NEAT(300, 2, 1, mutationRates, False)
 
     while True:
         # randomPhenotype = random.choice(neat.phenotypes)
@@ -69,7 +86,8 @@ if __name__ == '__main__':
         results = {}
         # answers = {}
         for i, phenotype in enumerate(neat.phenotypes):
-            results[i] = pool.apply_async(testOrganism, (phenotype, finishedIndex, len(neat.phenotypes)))
+            # results[i] = pool.apply_async(testOrganism, (phenotype, finishedIndex, len(neat.phenotypes)))
+            results[i] = pool.apply_async(profileOrganism, (phenotype, finishedIndex, len(neat.phenotypes)))
             # results[i] = testOrganism(phenotype, finishedIndex, len(neat.phenotypes))
 
         pool.close()
@@ -129,6 +147,8 @@ if __name__ == '__main__':
         print("")
         print("####################### Generation: " + str(neat.generation) + " #######################")
 
+        print("Phase: " + str(neat.phase))
+        print("MPC: (%s/%s)" % (neat.calculateMPC(), neat.mpcThreshold))
         print("Number of genomes: " + str(len(neat.genomes)))
         print("Number of species: " + str(len(neat.species)))
         print("Highest score:", highScore)
