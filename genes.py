@@ -27,19 +27,21 @@ class MutationRates:
     def __init__(self):
         self.crossoverRate = 0.7
 
-        self.newSpeciesTolerance = 4.0
+        self.newSpeciesTolerance = 3.0
 
         self.chanceToMutateBias = 0.7
 
         self.chanceToAddNode = 0.15
-
+        # self.chanceToAddNode = 0.25
         self.chanceToAddLink = 0.3
+        # self.chanceToAddLink = 0.5
+
         self.chanceToAddRecurrentLink = 0.05
 
-        self.chanceToDeleteNeuron = 0.5
-        self.chanceToDeleteLink = 0.5
+        self.chanceToDeleteNeuron = 0.15
+        self.chanceToDeleteLink = 0.3
 
-        self.mutationRate = 0.8
+        self.mutationRate = 0.5
         self.probabilityOfWeightReplaced = 0.1
         self.maxWeightPerturbation = 0.5
 
@@ -171,9 +173,6 @@ class SNeuronGene:
         self.splitY = y
         self.innovationID = innovationID
         
-        # self.linksIn = []
-        # self.linksOut = []
-
         self.activationResponse = None
         self.bias = 0.0
         self.recurrent = False
@@ -183,8 +182,9 @@ class SNeuronGene:
 
 class CGenome:
 
-    def __init__(self, ID, neurons, links, inputs, outputs):
+    def __init__(self, ID, neurons, links, inputs, outputs, parents=[]):
         self.ID = ID
+        self.parents = parents
 
         self.inputs = inputs
         self.outputs = outputs
@@ -202,12 +202,15 @@ class CGenome:
                 self.neurons.append(newNeuron)
 
         self.fitness: float = 0.0
+        self.adjustedFitness: float = 0.0
         self.novelty: float = 0.0
+        
+        self.milestone: float = 0.0
 
         # For printing
         self.distance = 0
-        self.uniqueKeysPressed = 0
-            
+        
+        self.species: CSpecies = None            
 
     def __lt__(self, other):
         return self.fitness < other.fitness
@@ -284,7 +287,9 @@ class CGenome:
 
         neuronDistance = (disjointRate * disjointedNeurons / longestNeurons) + biasDifference * matchedRate
 
-        return linkDistance + neuronDistance
+        distance = linkDistance + neuronDistance
+        self.distance = distance
+        return distance
         # return linkDistance
 
     def addRandomLink(self, chanceOfLooped):
@@ -480,19 +485,19 @@ class CGenome:
         #     baby.removeLink()
 
 
-        if phase == Phase.COMPLEXIFYING:
-            if (random.random() < mutationRates.chanceToAddNode):
-                self.addNeuron()
+        # if phase == Phase.COMPLEXIFYING:
+        if (random.random() < mutationRates.chanceToAddNode):
+            self.addNeuron()
 
-            if (random.random() < mutationRates.chanceToAddLink):
-                self.addRandomLink(mutationRates.chanceToAddRecurrentLink)
+        if (random.random() < mutationRates.chanceToAddLink):
+            self.addRandomLink(mutationRates.chanceToAddRecurrentLink)
 
-        elif phase == Phase.PRUNING:
-            if (random.random() < mutationRates.chanceToAddNode):
-                self.removeRandomNeuron()
+        # elif phase == Phase.PRUNING:
+        if (random.random() < mutationRates.chanceToAddNode):
+            self.removeRandomNeuron()
 
-            if (random.random() < mutationRates.chanceToAddLink):
-                self.removeRandomLink()
+        if (random.random() < mutationRates.chanceToAddLink):
+            self.removeRandomLink()
 
         self.mutateWeights(mutationRates.mutationRate, mutationRates.probabilityOfWeightReplaced, mutationRates.maxWeightPerturbation)
         self.mutateBias(mutationRates.chanceToMutateBias, mutationRates.probabilityOfWeightReplaced, mutationRates.maxWeightPerturbation)

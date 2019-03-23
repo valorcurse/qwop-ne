@@ -23,17 +23,18 @@ from genes import SpeciationType
 global innovations
 
 class CSpecies:
-    numGensAllowNoImprovement = 40
+    numGensAllowNoImprovement = 20
 
     def __init__(self, speciesID: int, leader: CGenome):
         self.ID: int = speciesID
 
-        self.members: CGenome = [leader]
+        self.members: CGenome = []
+        self.addMember(leader)
+        self.leader: CGenome = leader
 
         self.age: int = 0
         self.numToSpawn: int = 0
 
-        self.leader: CGenome = leader
 
         self.youngAgeThreshold: int = 10
         self.youngAgeBonus: float = 1.5
@@ -43,40 +44,40 @@ class CSpecies:
         self.highestFitness: float = 0.0
         self.generationsWithoutImprovement: int = 0
 
+        self.milestone: float = leader.milestone
+
         self.stagnant = False
 
     def __contains__(self, key: int):
         return key.ID in [m.ID for m in self.members]
 
     def isMember(self, genome: CGenome):
-        # print("members:", [m.ID for m in self.members], "genome:", genome.ID, "->", (genome.ID in [m.ID for m in self.members]))
         return (genome.ID in [m.ID for m in self.members])
 
+    def addMember(self, genome: CGenome):
+        self.members.append(genome)
+        genome.species = self
+
     def best(self):
-        # return max(self.members, key=attrgetter('fitness'))
         return max(self.members)
+
 
     def spawn(self):
         return random.choice(self.members)
 
     def adjustFitnesses(self):
-        # fitnessRange = max(1.0, maxFitness - minFitness)
+        # avgMilestone = np.average([m.milestone for m in self.members])
         
-        # highestFitness = round(highestFitness, 1)
-
-        # avgMemberFitness = sum([m.fitness for m in self.members])/len(self.members)
-        # newAdjustedFitness = (avgMemberFitness - minFitness) / fitnessRange
+        # self.members = [m for m in self.members if m.milestone >= avgMilestone]
 
         for m in self.members:
             m.adjustedFitness = m.fitness / len(self.members)
 
-            if self.age <= self.youngAgeThreshold:
-                m.adjustedFitness *= self.youngAgeBonus
+            # if self.age <= self.youngAgeThreshold:
+            #     m.adjustedFitness *= self.youngAgeBonus
 
-            if self.age >= self.oldAgeThreshold:
-                m.adjustedFitness *= self.oldAgePenalty
-
-        # self.adjustedFitness = newAdjustedFitness
+            # if self.age >= self.oldAgeThreshold:
+            #     m.adjustedFitness *= self.oldAgePenalty
 
     def becomeOlder(self):
         self.age += 1
@@ -138,6 +139,7 @@ class NEAT:
 
         inputs.extend(outputs)
         newGenome = CGenome(self.currentGenomeID, inputs, links, numOfInputs, numOfOutputs)
+        newGenome.parents = [newGenome]
         for i in range(self.populationSize):
             print("\rCreating genomes (" + str(i + 1) + "/" + str(self.populationSize) + ")", end='')
             self.genomes.append(deepcopy(newGenome))
@@ -147,22 +149,22 @@ class NEAT:
 
 
         # mpc = self.calculateMPC()
-        mpc = 100
-        self.mpcThreshold: int = mpc + mutationRates.mpcMargin
-        self.lowestMPC: int = mpc
-        self.mpcStagnation: int = 0
+        # mpc = 100
+        # self.mpcThreshold: int = mpc + mutationRates.mpcMargin
+        # self.lowestMPC: int = mpc
+        # self.mpcStagnation: int = 0
         
-        print("mpc", mpc)
-        print("mpc threshold", self.mpcThreshold)
+        # print("mpc", mpc)
+        # print("mpc threshold", self.mpcThreshold)
 
         self.speciate()
         self.epoch([0]*len(self.genomes))
 
 
-    def calculateMPC(self):
-        allMutations = [[n for n in g.neurons] + [l for l in g.links] for g in self.genomes]
-        nrOfMutations = len([item for sublist in allMutations for item in sublist])
-        return (nrOfMutations / len(self.genomes))
+    # def calculateMPC(self):
+    #     allMutations = [[n for n in g.neurons] + [l for l in g.links] for g in self.genomes]
+    #     nrOfMutations = len([item for sublist in allMutations for item in sublist])
+    #     return (nrOfMutations / len(self.genomes))
 
     def epoch(self, fitnessScores: float, novelty: float = None):
         
@@ -172,31 +174,34 @@ class NEAT:
 
         # Set fitness score to their respesctive genome
         for index, genome in enumerate(self.genomes):
-            genome.fitness = max(1, fitnessScores[index])
+            genome.fitness = fitnessScores[index]
 
         self.calculateSpawnAmount()
+
+
+
         self.reproduce()
         
         self.speciate()
 
-        mpc = self.calculateMPC()
+        # mpc = self.calculateMPC()
 
-        if self.phase == Phase.PRUNING:
-            if mpc < self.lowestMPC:
-                self.lowestMPC = mpc
-                self.mpcStagnation = 0
-            else:
-                self.mpcStagnation += 1
+        # if self.phase == Phase.PRUNING:
+        #     if mpc < self.lowestMPC:
+        #         self.lowestMPC = mpc
+        #         self.mpcStagnation = 0
+        #     else:
+        #         self.mpcStagnation += 1
 
-            if self.mpcStagnation >= 10:
-                self.phase = Phase.COMPLEXIFYING
-                self.mpcThreshold = mpc + self.mutationRates.mpcMargin
+        #     if self.mpcStagnation >= 10:
+        #         self.phase = Phase.COMPLEXIFYING
+        #         self.mpcThreshold = mpc + self.mutationRates.mpcMargin
 
-        elif self.phase == Phase.COMPLEXIFYING:
-            if mpc >= self.mpcThreshold:
-                self.phase = Phase.PRUNING
-                self.mpcStagnation = 0
-                self.lowestMPC = mpc
+        # elif self.phase == Phase.COMPLEXIFYING:
+        #     if mpc >= self.mpcThreshold:
+        #         self.phase = Phase.PRUNING
+        #         self.mpcStagnation = 0
+        #         self.lowestMPC = mpc
 
 
         newPhenotypes = []
@@ -243,12 +248,15 @@ class NEAT:
                 closestSpecies.members.append(genome)
 
             else: # Else create a new species
-                # random: float = random.random()
+                chance: float = random.random()
 
-                # if (random <= 0.1):
-                self.speciesNumber += 1
-                self.species.append(CSpecies(self.speciesNumber, genome))
-                # else:
+                parentSpecies: CSpecies = random.choice(genome.parents).species
+
+                if (chance >= 0.1) and parentSpecies is not None:
+                    parentSpecies.addMember(genome)
+                else:
+                    self.speciesNumber += 1
+                    self.species.append(CSpecies(self.speciesNumber, genome))
                     
 
 
@@ -266,11 +274,14 @@ class NEAT:
                 members.remove(topMember)
                 numToSpawn -= 1
 
+            # Only select members who got past the milestone
+            members = [m for m in members if m.milestone >= s.milestone]
+
             # Only use the survival threshold fraction to use as parents for the next generation.
-            cutoff = int(math.ceil(0.2 * len(members)))
-            # Use at least two parents no matter what the threshold fraction result is.
-            cutoff = max(cutoff, 2)
-            members = members[:cutoff]
+            # cutoff = int(math.ceil(0.2 * len(members)))
+            # # Use at least two parents no matter what the threshold fraction result is.
+            # cutoff = max(cutoff, 2)
+            # members = members[:cutoff]
 
             if (numToSpawn <= 0 or len(members) <= 0):
                 continue
@@ -285,8 +296,9 @@ class NEAT:
                     # g2 = random.choice(members)
                     
                     # Tournament selection
-                    g1 = sorted(random.sample(members, 5), key=lambda x: x.fitness)[0]
-                    g2 = sorted(random.sample(members, 5), key=lambda x: x.fitness)[0]
+                    randomMembers = [random.choice(members) for _ in range(5)]
+                    g1 = sorted(randomMembers, key=lambda x: x.fitness)[0]
+                    g2 = sorted(randomMembers, key=lambda x: x.fitness)[0]
                     
                     baby = self.crossover(g1, g2)
 
@@ -306,58 +318,21 @@ class NEAT:
             for s in self.species:
                 s.becomeOlder()
 
-                if s.stagnant:
+                if s.stagnant and len(self.species) > 1:
                     self.species.remove(s)
         
-        # Adjust species fitness
-        # allFitnesses = [m.fitness for spc in self.species for m in spc.members]
-        # minFitness = min(allFitnesses) if len(allFitnesses) != 0 else 0.0
-        # maxFitness = max(allFitnesses) if len(allFitnesses) != 0 else 0.0
         for s in self.species:
             s.adjustFitnesses()
         
         allFitnesses = sum([m.adjustedFitness for spc in self.species for m in spc.members])
-        
 
-
-        print("allFitnesses", allFitnesses)
         for s in self.species:
             sumOfFitnesses = sum([m.adjustedFitness for m in s.members])
 
 
             portionOfFitness = 1 if allFitnesses == 0 and sumOfFitnesses == 0 else sumOfFitnesses/allFitnesses
-            s.numToSpawn = int(portionOfFitness * self.populationSize)
-        
-        # minToSpawn = 2
-        # sumFitness = sum(s.adjustedFitness for s in self.species)
-        # spawnAmounts = []
-        
-        # for s in self.species:            
-        #     if (sumFitness > 0):
-        #         size = max(minToSpawn, s.adjustedFitness / sumFitness * self.populationSize)
-        #     else:
-        #         size = minToSpawn
-
-        #     previousSize = len(s.members)
-        #     sizeDifference = (size - previousSize) * 0.5
-        #     roundedSize = int(round(sizeDifference))
-        #     toSpawn = previousSize
-            
-        #     if abs(roundedSize) > 0:
-        #         toSpawn += roundedSize
-        #     elif sizeDifference > 0:
-        #         toSpawn += 1
-        #     elif sizeDifference < 0:
-        #         toSpawn -= 1
-
-        #     spawnAmounts.append(toSpawn)
-
-        # totalSpawn = max(1, sum(spawnAmounts))
-        # norm = self.populationSize / totalSpawn
-        # spawnAmounts = [max(minToSpawn, int(round(n * norm))) for n in spawnAmounts]
-        
-        # for spawnAmount, species in zip(spawnAmounts, self.species):
-        #     species.numToSpawn = spawnAmount
+            s.numToSpawn = int(self.populationSize * portionOfFitness)
+            print(str(s.ID) + " to spawn " + str(portionOfFitness) +" of " + str(self.populationSize))
 
     def crossover(self, mum, dad):
         
@@ -408,5 +383,5 @@ class NEAT:
 
         babyNeurons.sort(key=lambda x: x.splitY, reverse=False)
 
-        return CGenome(self.currentGenomeID, babyNeurons, babyLinks, best.inputs, best.outputs)
+        return CGenome(self.currentGenomeID, babyNeurons, babyLinks, best.inputs, best.outputs, [mum, dad])
 
