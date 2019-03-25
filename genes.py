@@ -1,3 +1,5 @@
+from typing import List, Set, Dict, Tuple, Optional
+
 from phenotypes import CNeuralNet, SLink, SNeuron, NeuronType
 
 import random
@@ -24,7 +26,7 @@ class SpeciationType(Enum):
     NOVELTY = 1
 
 class MutationRates:
-    def __init__(self):
+    def __init__(self) -> None:
         self.crossoverRate = 0.7
 
         self.newSpeciesTolerance = 3.0
@@ -52,23 +54,23 @@ class InnovationType(Enum):
     LINK = 1
 
 class SInnovation:
-    def __init__(self, innovationType, innovationID, start, end, neuronID):
+    def __init__(self, innovationType: InnovationType, innovationID: int, start: int, end: int, neuronID: int) -> None:
         self.innovationType = innovationType
         self.innovationID = innovationID
         self.start = start
         self.end = end
         self.neuronID = neuronID
 
-    def __eq__(self, other):
+    def __eq__(self, other: InnovationType) -> bool:
         return self.innovationType == other
 
 class Innovations:
-    def __init__(self):
-        self.listOfInnovations = []
+    def __init__(self) -> None:
+        self.listOfInnovations: List[SInnovation] = []
 
         self.currentNeuronID = 1
 
-    def createNewLinkInnovation(self, fromID, toID):
+    def createNewLinkInnovation(self, fromID: int, toID: int) -> int:
         ID = innovations.checkInnovation(fromID, toID, InnovationType.LINK)
 
         if (ID == -1):
@@ -78,7 +80,7 @@ class Innovations:
 
         return ID;
 
-    def createNewLink(self, fromNeuron, toNeuron, enabled, weight, recurrent=False):    
+    def createNewLink(self, fromNeuron: SNeuronGene, toNeuron: SNeuronGene, enabled: bool, weight: float, recurrent: bool=False) -> SLinkGene:
         fromID = fromNeuron.ID if fromNeuron else None
         toID = toNeuron.ID if toNeuron else None
         ID = self.createNewLinkInnovation(fromID, toID)
@@ -114,7 +116,7 @@ class Innovations:
 
         return SNeuronGene(neuronType, neuronID, y, innovationID)
     
-    def checkInnovation(self, start, end, innovationType, neuronID = None):
+    def checkInnovation(self, start: int, end: int, innovationType: InnovationType, neuronID: int = None):
         matched = next((innovation for innovation in self.listOfInnovations if (
                 (innovation.start == start) and
                 (innovation.end == end) and
@@ -148,7 +150,7 @@ innovations = Innovations()
 
 class SLinkGene:
 
-    def __init__(self, fromNeuron, toNeuron, enabled, innovationID, weight, recurrent=False):
+    def __init__(self, fromNeuron: SNeuronGene, toNeuron: SNeuronGene, enabled: bool, innovationID: int, weight: float, recurrent: bool=False):
         self.fromNeuron = fromNeuron
         self.toNeuron = toNeuron
 
@@ -160,10 +162,10 @@ class SLinkGene:
 
         self.innovationID = innovationID
 
-    def __lt__(self, other):
+    def __lt__(self, other: SLinkGene) -> bool:
         return self.innovationID < other.innovationID
 
-    def __eq__(self, other):
+    def __eq__(self, other: SLinkGene) -> bool:
         return self.innovationID == other.innovationID
 
 class SNeuronGene:
@@ -182,7 +184,7 @@ class SNeuronGene:
 
 class CGenome:
 
-    def __init__(self, ID, neurons, links, inputs, outputs, parents=[]):
+    def __init__(self, ID: int, neurons: List[SNeuronGene], links: List[SLinkGene], inputs: int, outputs: int, parents: List[CGenome]=[]) -> None:
         self.ID = ID
         self.parents = parents
 

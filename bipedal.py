@@ -1,3 +1,5 @@
+from typing import List, Set, Dict, Tuple, Optional
+
 from genes import innovations
 from neat import NEAT
 from prettytable import PrettyTable
@@ -103,7 +105,7 @@ if __name__ == '__main__':
 
     # General settings
     IDToRender = None
-    highestReward = [0, 0]
+    highestReward = [0.0, 0]
     # nrOfSteps: int  = 600
 
     # Novelty search
@@ -117,12 +119,12 @@ if __name__ == '__main__':
         os.makedirs(saveDirectory)
 
     while True:
-        rewards: float = []
-        novelties: float = []
-        milestones: float = []
+        rewards: List[float] = []
+        novelties: List[float] = []
+        milestones: List[float] = []
 
         IDToRender = deepcopy(highestReward[1])
-        highestReward = [0, 0]
+        highestReward = [0.0, 0]
         
         for i, phenotype in enumerate(neat.phenotypes):
 

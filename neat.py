@@ -1,3 +1,5 @@
+from typing import List, Set, Dict, Tuple, Optional
+
 import random
 from random import randint
 
@@ -20,6 +22,8 @@ from genes import MutationRates
 from genes import Phase
 from genes import SpeciationType
 
+from phenotypes import CNeuralNet
+
 global innovations
 
 class CSpecies:
@@ -28,7 +32,7 @@ class CSpecies:
     def __init__(self, speciesID: int, leader: CGenome):
         self.ID: int = speciesID
 
-        self.members: CGenome = []
+        self.members: List[CGenome] = []
         self.addMember(leader)
         self.leader: CGenome = leader
 
@@ -46,26 +50,26 @@ class CSpecies:
 
         self.milestone: float = leader.milestone
 
-        self.stagnant = False
+        self.stagnant: bool = False
 
-    def __contains__(self, key: int):
-        return key.ID in [m.ID for m in self.members]
+    def __contains__(self, key: int) -> bool:
+        return key in [m.ID for m in self.members]
 
-    def isMember(self, genome: CGenome):
+    def isMember(self, genome: CGenome) -> bool:
         return (genome.ID in [m.ID for m in self.members])
 
-    def addMember(self, genome: CGenome):
+    def addMember(self, genome: CGenome) -> None:
         self.members.append(genome)
         genome.species = self
 
-    def best(self):
+    def best(self) -> CGenome:
         return max(self.members)
 
 
-    def spawn(self):
+    def spawn(self) -> CGenome:
         return random.choice(self.members)
 
-    def adjustFitnesses(self):
+    def adjustFitnesses(self) -> None:
         # avgMilestone = np.average([m.milestone for m in self.members])
         
         # self.members = [m for m in self.members if m.milestone >= avgMilestone]
@@ -79,7 +83,7 @@ class CSpecies:
             # if self.age >= self.oldAgeThreshold:
             #     m.adjustedFitness *= self.oldAgePenalty
 
-    def becomeOlder(self):
+    def becomeOlder(self) -> None:
         self.age += 1
 
         highestFitness = max([m.fitness for m in self.members])
@@ -96,11 +100,11 @@ class CSpecies:
 
 class NEAT:
 
-    def __init__(self, numberOfGenomes, numOfInputs, numOfOutputs, mutationRates=MutationRates(), fullyConnected=False):
+    def __init__(self, numberOfGenomes: int, numOfInputs: int, numOfOutputs: int, mutationRates: MutationRates=MutationRates(), fullyConnected: bool=False) -> None:
 
-        self.genomes: CGenome = []
-        self.phenotypes: CNeuralNet = []
-        self.species: CSpecies = []
+        self.genomes: List[CGenome] = []
+        self.phenotypes: List[CNeuralNet] = []
+        self.species: List[CSpecies] = []
         self.speciesNumber: int = 0
 
         self.populationSize: int = numberOfGenomes
@@ -166,7 +170,7 @@ class NEAT:
     #     nrOfMutations = len([item for sublist in allMutations for item in sublist])
     #     return (nrOfMutations / len(self.genomes))
 
-    def epoch(self, fitnessScores: float, novelty: float = None):
+    def epoch(self, fitnessScores: List[float], novelty: List[float] = None):
         
         if novelty is not None:
             for index, genome in enumerate(self.genomes):
@@ -177,8 +181,6 @@ class NEAT:
             genome.fitness = fitnessScores[index]
 
         self.calculateSpawnAmount()
-
-
 
         self.reproduce()
         
