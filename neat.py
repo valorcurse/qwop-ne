@@ -17,6 +17,8 @@ from prettytable import PrettyTable
 import genes
 from genes import NeuronType
 from genes import CGenome
+from genes import SLinkGene
+from genes import SNeuronGene
 from genes import innovations
 from genes import MutationRates
 from genes import Phase
@@ -121,7 +123,7 @@ class NEAT:
         inputs = []
         for n in range(numOfInputs):
             print("\rCreating inputs neurons (" + str(n + 1) + "/" + str(numOfInputs) + ")", end='')
-            newInput = innovations.createNewNeuron(0.0, None, None, NeuronType.INPUT, -n-1)
+            newInput = innovations.createNewNeuron(0.0, NeuronType.INPUT, fromNeuron = None, toNeuron = None, neuronID = -n-1)
             inputs.append(newInput)
 
         print("")
@@ -129,7 +131,7 @@ class NEAT:
         outputs = []
         for n in range(numOfOutputs):
             print("\rCreating output neurons (" + str(n + 1) + "/" + str(numOfOutputs) + ")", end='')
-            newOutput = innovations.createNewNeuron(1.0, None, None, NeuronType.OUTPUT, -numOfInputs-n-1)
+            newOutput = innovations.createNewNeuron(1.0, NeuronType.OUTPUT, fromNeuron = None, toNeuron = None, neuronID = -numOfInputs-n-1)
             outputs.append(newOutput)
 
         print("")
@@ -170,7 +172,7 @@ class NEAT:
     #     nrOfMutations = len([item for sublist in allMutations for item in sublist])
     #     return (nrOfMutations / len(self.genomes))
 
-    def epoch(self, fitnessScores: List[float], novelty: List[float] = None):
+    def epoch(self, fitnessScores: List[float], novelty: Optional[List[float]] = None) -> None:
         
         if novelty is not None:
             for index, genome in enumerate(self.genomes):
@@ -214,7 +216,7 @@ class NEAT:
 
         self.phenotypes = newPhenotypes
 
-    def speciate(self):
+    def speciate(self) -> None:
         # Find best leader for species from the new population
         unspeciated = list(range(0, len(self.genomes)))
         for s in self.species:
@@ -252,7 +254,7 @@ class NEAT:
             else: # Else create a new species
                 chance: float = random.random()
 
-                parentSpecies: CSpecies = random.choice(genome.parents).species
+                parentSpecies: Optional[CSpecies] = random.choice(genome.parents).species
 
                 if (chance >= 0.1) and parentSpecies is not None:
                     parentSpecies.addMember(genome)
@@ -262,7 +264,7 @@ class NEAT:
                     
 
 
-    def reproduce(self):
+    def reproduce(self) -> None:
         newPop = []
         for s in self.species:
             numToSpawn = s.numToSpawn
@@ -289,7 +291,7 @@ class NEAT:
                 continue
 
             for i in range(numToSpawn):
-                baby = None
+                baby: Optional[CGenome] = None
 
                 if (self.phase == Phase.PRUNING or random.random() > self.mutationRates.crossoverRate):
                     baby = deepcopy(random.choice(members))
@@ -314,7 +316,7 @@ class NEAT:
 
         self.genomes = newPop
 
-    def calculateSpawnAmount(self):
+    def calculateSpawnAmount(self) -> None:
         # Remove stagnant species
         if self.phase == Phase.COMPLEXIFYING:
             for s in self.species:
@@ -336,7 +338,7 @@ class NEAT:
             s.numToSpawn = int(self.populationSize * portionOfFitness)
             print(str(s.ID) + " to spawn " + str(portionOfFitness) +" of " + str(self.populationSize))
 
-    def crossover(self, mum, dad):
+    def crossover(self, mum: CGenome, dad: CGenome) -> CGenome:
         
         best = None
         if (mum.fitness == dad.fitness):
@@ -355,21 +357,21 @@ class NEAT:
             [l.innovationID for l in mum.links] + [l.innovationID for l in dad.links]))
         combinedIndexes.sort()
         
-        mumDict = {l.innovationID: l for l in mum.links}
-        dadDict = {l.innovationID: l for l in dad.links}
+        mumDict: Dict[int, SLinkGene] = {l.innovationID: l for l in mum.links}
+        dadDict: Dict[int, SLinkGene] = {l.innovationID: l for l in dad.links}
 
         # print("-------------------------------------------------")
-        babyLinks = []
+        babyLinks: List[SLinkGene] = []
         for i in combinedIndexes:
-            mumLink = deepcopy(mumDict.get(i))
-            dadLink = deepcopy(dadDict.get(i))
+            mumLink: Optional[SLinkGene] = deepcopy(mumDict.get(i))
+            dadLink: Optional[SLinkGene] = deepcopy(dadDict.get(i))
             
             if (mumLink is None):
-                if (best == dad):
+                if (dadLink is not None and best == dad):
                     babyLinks.append(dadLink)
 
             elif (dadLink is None):
-                if (best == mum):
+                if (mumLink is not None and best == mum):
                     babyLinks.append(mumLink)
 
             else:

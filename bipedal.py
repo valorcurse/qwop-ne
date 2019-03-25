@@ -1,7 +1,8 @@
-from typing import List, Set, Dict, Tuple, Optional
+from typing import List, Set, Dict, Tuple, Optional, Any
 
 from genes import innovations
-from neat import NEAT
+from neat import NEAT, CNeuralNet
+
 from prettytable import PrettyTable
 import numpy as np
 import scipy as sp
@@ -25,7 +26,7 @@ farthestDistance: float = np.sqrt(np.power((space_range*2), 2)*dimensions)
 # Sparseness threshold as percentage of farthest distance between 2 points
 p_threshold: float = farthestDistance*0.03
 
-def testOrganism(env, phenotype, novelty_map, render):
+def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool) -> Dict[str, Any]:
     observation = env.reset()
     
     totalReward: float = 0.0
@@ -33,7 +34,6 @@ def testOrganism(env, phenotype, novelty_map, render):
     distanceSoFar: float = 0.0
     
     actionsDone = np.zeros(8)
-    nrOfSteps = 0
 
     sparseness: float = 0
     nrOfSteps: int = 0
@@ -203,13 +203,13 @@ if __name__ == '__main__':
 
         # Save current generation
         saveFileName = saveFolder + "." + str(neat.generation)
-        with open(saveDirectory + "/" + saveFileName, 'wb') as file:
-            pickle.dump([neat, innovations], file)
+        with open(saveDirectory + "/" + saveFileName, 'wb') as binaryFile:
+            pickle.dump([neat, innovations], binaryFile)
 
         # Append to summary file
-        with open(saveDirectory + "/summary.txt", 'a') as file:
-            file.write("Generation " + str(neat.generation) + "\n")
-            file.write(table.get_string())
-            file.write("\n\n")
+        with open(saveDirectory + "/summary.txt", 'a') as textFile:
+            textFile.write("Generation " + str(neat.generation) + "\n")
+            textFile.write(table.get_string())
+            textFile.write("\n\n")
 
     env.close()
