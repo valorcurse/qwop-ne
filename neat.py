@@ -14,7 +14,7 @@ from operator import attrgetter
 
 from prettytable import PrettyTable
 
-import genes
+# import genes
 from genes import NeuronType
 from genes import CGenome
 from genes import SLinkGene
@@ -222,7 +222,7 @@ class NEAT:
         for s in self.species:
             compareMember = random.choice(s.members)
             s.members = []
-            candidates = []
+            candidates: List[Tuple[float, int]] = []
             for i in unspeciated:
                 genome = self.genomes[i]
                 distance = genome.calculateCompatibilityDistance(compareMember)

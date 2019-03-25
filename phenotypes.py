@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import List, Set, Dict, Tuple, Optional, Any
 from enum import Enum
 
@@ -7,8 +9,6 @@ from math import cos, sin, atan, ceil, floor
 import numpy as np
 from matplotlib import pyplot
 import matplotlib.patches as patches
-
-from genes import CGenome
 
 image_width = 34
 image_height = 31
@@ -23,17 +23,6 @@ class NeuronType(Enum):
     BIAS = 2
     OUTPUT = 3
     LINK = 4
-
-class SLink:
-
-    def __init__(self, fromNeuron: SNeuron, toNeuron: SNeuron, weight: float, recurrent: bool = False) -> None:
-        self.fromNeuron = fromNeuron
-        self.toNeuron = toNeuron
-
-        self.weight = weight
-
-        self.recurrent = recurrent
-
 
 class SNeuron:
     def __init__(self, neuronType: NeuronType, neuronID: int, bias: float, y: float):
@@ -94,12 +83,19 @@ class SNeuron:
 
             pyplot.pause(0.005)
 
+class SLink:
+
+    def __init__(self, fromNeuron: SNeuron, toNeuron: SNeuron, weight: float, recurrent: bool = False) -> None:
+        self.fromNeuron = fromNeuron
+        self.toNeuron = toNeuron
+
+        self.weight = weight
+
+        self.recurrent = recurrent
 
 class CNeuralNet:
 
-    def __init__(self, neurons: List[SNeuron], ID: int, genome: CGenome) -> None:
-        self.genome = genome
-
+    def __init__(self, neurons: List[SNeuron], ID: int) -> None:
         self.neurons = neurons
         self.ID = ID
 

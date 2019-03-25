@@ -1,7 +1,6 @@
-from typing import List, Set, Dict, Tuple, Optional, Any
+from __future__ import annotations
 
-from phenotypes import CNeuralNet, SLink, SNeuron, NeuronType
-from neat import CSpecies
+from typing import List, Set, Dict, Tuple, Optional, Any
 
 import random
 from random import randint
@@ -17,6 +16,12 @@ from matplotlib import pyplot
 import matplotlib.patches as patches
 
 from prettytable import PrettyTable
+
+from phenotypes import CNeuralNet, SLink, SNeuron, NeuronType
+# from neat import CSpecies
+
+class CSpecies:
+    pass
 
 class Phase(Enum):
     COMPLEXIFYING = 0
@@ -64,6 +69,39 @@ class SInnovation:
 
     def __eq__(self, other: object) -> bool:
         return self.innovationType == other if isinstance(other, SInnovation) else NotImplemented
+
+class SNeuronGene:
+    def __init__(self, neuronType: NeuronType, ID: int, y: float, innovationID: int) -> None:
+        self.neuronType = neuronType
+        self.ID = ID
+        self.splitY = y
+        self.innovationID = innovationID
+        
+        self.bias = 0.0
+        self.recurrent = False
+
+    def __eq__(self, other: Any) -> bool:
+        return other is not None and self.innovationID == other.innovationID
+
+class SLinkGene:
+
+    def __init__(self, fromNeuron: SNeuronGene, toNeuron: SNeuronGene, enabled: bool, innovationID: int, weight: float, recurrent: bool=False):
+        self.fromNeuron = fromNeuron
+        self.toNeuron = toNeuron
+
+        self.weight = weight
+
+        self.enabled = enabled
+
+        self.recurrent = recurrent
+
+        self.innovationID = innovationID
+
+    def __lt__(self, other: SLinkGene) -> bool:
+        return self.innovationID < other.innovationID
+
+    def __eq__(self, other: object) -> bool:
+        return self.innovationID == other.innovationID if isinstance(other, SLinkGene) else NotImplemented
 
 class Innovations:
     def __init__(self) -> None:
@@ -145,40 +183,6 @@ class Innovations:
 # Global innovations database
 global innovations
 innovations = Innovations()
-
-
-class SLinkGene:
-
-    def __init__(self, fromNeuron: SNeuronGene, toNeuron: SNeuronGene, enabled: bool, innovationID: int, weight: float, recurrent: bool=False):
-        self.fromNeuron = fromNeuron
-        self.toNeuron = toNeuron
-
-        self.weight = weight
-
-        self.enabled = enabled
-
-        self.recurrent = recurrent
-
-        self.innovationID = innovationID
-
-    def __lt__(self, other: SLinkGene) -> bool:
-        return self.innovationID < other.innovationID
-
-    def __eq__(self, other: object) -> bool:
-        return self.innovationID == other.innovationID if isinstance(other, SLinkGene) else NotImplemented
-
-class SNeuronGene:
-    def __init__(self, neuronType: NeuronType, ID: int, y: float, innovationID: int) -> None:
-        self.neuronType = neuronType
-        self.ID = ID
-        self.splitY = y
-        self.innovationID = innovationID
-        
-        self.bias = 0.0
-        self.recurrent = False
-
-    def __eq__(self, other: Any) -> bool:
-        return other is not None and self.innovationID == other.innovationID
 
 class CGenome:
 
@@ -535,4 +539,4 @@ class CGenome:
 
                 toNeuron.linksIn.append(tmpLink)
 
-        return CNeuralNet(phenotypeNeurons, self.ID, self)
+        return CNeuralNet(phenotypeNeurons, self.ID)
