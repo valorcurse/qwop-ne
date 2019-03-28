@@ -6,16 +6,17 @@ from enum import Enum
 import math
 from math import cos, sin, atan, ceil, floor
 
+from scipy import special
+
 import numpy as np
-from matplotlib import pyplot
-import matplotlib.patches as patches
+
 
 image_width = 34
 image_height = 31
-horizontal_distance_between_layers = 5
+horizontal_distance_between_layers = 10
 vertical_distance_between_neurons = 5
 neuron_radius = 1
-number_of_neurons_in_widest_layer = 4
+number_of_neurons_in_widest_layer = 24
 
 class NeuronType(Enum):
     INPUT = 0
@@ -59,8 +60,8 @@ class SNeuron:
             (self.posX, self.posY), 
             radius=neuron_radius, fill=(self.neuronType == NeuronType.BIAS))
         pyplot.gca().add_patch(circle)
-        pyplot.annotate(str(self.ID), xy=(self.posX - neuron_radius/4, self.posY))
-        pyplot.annotate(str("{:1.2f}".format(self.bias)), xy=(self.posX - neuron_radius/2, self.posY - neuron_radius/2))
+        # pyplot.annotate(str(self.ID), xy=(self.posX - neuron_radius/4, self.posY))
+        # pyplot.annotate(str("{:1.2f}".format(self.bias)), xy=(self.posX - neuron_radius/2, self.posY - neuron_radius/2))
 
         for l in self.linksIn:
             fromNeuron = l.fromNeuron
@@ -81,7 +82,7 @@ class SNeuron:
             pyplot.annotate(str("{:1.2f}".format(l.weight)), xy=(self.posX - (self.posX - fromNeuron.posX)/2, self.posY - (self.posY - fromNeuron.posY)/2))
 
 
-            pyplot.pause(0.005)
+            pyplot.pause(0.001)
 
 class SLink:
 
@@ -113,20 +114,14 @@ class CNeuralNet:
             self.layers.append(Layer(self, neuronsToDraw))
 
 
-
-    # def draw(self, image) -> None:
-    #     pyplot.clf()
-    #     pyplot.imshow(image, cmap='gray')
-    #     pyplot.xticks([]), pyplot.yticks([])  # to hide tick values on X and Y axis
-    #     for layer in self.layers:
-    #         layer.draw()
-
-    #     # pyplot.draw()
-    #     pyplot.axis('scaled')
-    #     # pyplot.pause(1)
-    #     pyplot.show()
-
     def draw(self) -> None:
+        edge_trace = go.Scatter(
+            x=[],
+            y=[],
+            line=dict(width=0.5,color='#888'),
+            hoverinfo='none',
+            mode='lines')
+
         pyplot.clf()
         for layer in self.layers:
             layer.draw()
@@ -135,20 +130,26 @@ class CNeuralNet:
         pyplot.axis('scaled')
         pyplot.gca().relim()
         pyplot.gca().autoscale_view()
-        pyplot.draw()
-        pyplot.pause(0.5)
+        pyplot.ion()
         pyplot.show()
+        pyplot.draw()
+        pyplot.pause(0.001)
 
-    # def sigmoid(self, x):
-    #     return 1.0 / (1.0 + math.exp(-x))
+    def sigmoid(self, x):
+        return 1.0 / (1.0 + math.exp(-x))
 
+    def relu(self, x: float) -> float:
+        return np.maximum(x, 0)
+
+    def activation(self, x: float) -> float:
+        return self.relu(x)
     # def sigmoid(self, z):
     #     z = max(-60.0, min(60.0, 5.0 * z))
     #     return 1.0 / (1.0 + math.exp(-z))
 
     # Actually tanh
-    def sigmoid(self, x: float) -> float:
-        return (math.exp(x) - math.exp(-x))/(math.exp(x) + math.exp(-x))
+    # def sigmoid(self, x: float) -> float:
+    #     return (math.exp(x) - math.exp(-x))/(math.exp(x) + math.exp(-x))
 
     def calcOutput(self, neuron: SNeuron) -> float:
         linksIn = neuron.linksIn
@@ -174,9 +175,10 @@ class CNeuralNet:
 
         for currentNeuron in self.neurons[len(inputNeurons):]:
             linksIn = currentNeuron.linksIn
-            output = np.sum([link.fromNeuron.output * link.weight for link in linksIn])
-            currentNeuron.output = self.sigmoid(currentNeuron.bias + output)
-
+            # output = np.sum(np.array([link.fromNeuron.output * link.weight for link in linksIn]))
+            output = np.array([link.fromNeuron.output * link.weight for link in linksIn])
+            # currentNeuron.output = self.activation(currentNeuron.bias + np.sum(output)) if currentNeuron is not NeuronType.OUTPUT else np.tanh(np.sum(output))
+            currentNeuron.output = np.tanh(currentNeuron.bias + np.sum(output))
         # print(table)
         return [n.output for n in self.neurons if n.neuronType == NeuronType.OUTPUT]
 

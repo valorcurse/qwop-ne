@@ -85,10 +85,13 @@ class CSpecies:
             # if self.age >= self.oldAgeThreshold:
             #     m.adjustedFitness *= self.oldAgePenalty
 
-    def becomeOlder(self) -> None:
+    def becomeOlder(self, alone: bool) -> None:
         self.age += 1
 
         highestFitness = max([m.fitness for m in self.members])
+
+        if alone:
+            return
 
         # Check if species is stagnant
         if (highestFitness < self.highestFitness):
@@ -97,7 +100,7 @@ class CSpecies:
             self.generationsWithoutImprovement = 0
             self.highestFitness = highestFitness
 
-        if (self.generationsWithoutImprovement == self.numGensAllowNoImprovement):
+        if (self.generationsWithoutImprovement >= self.numGensAllowNoImprovement):
             self.stagnant = True
 
 class NEAT:
@@ -119,6 +122,8 @@ class NEAT:
         self.speciationType: SpeciationType = SpeciationType.NOVELTY
 
         self.mutationRates: MutationRates = mutationRates
+
+        self.averageInterspeciesDistance = 0.0
 
         inputs = []
         for n in range(numOfInputs):
@@ -183,10 +188,29 @@ class NEAT:
             genome.fitness = fitnessScores[index]
 
         self.calculateSpawnAmount()
-
+ 
         self.reproduce()
         
         self.speciate()
+
+        if len(self.species) > 1:
+            totalDistance: float = 0.0
+            for s in self.species:
+                randomSpecies: Species = random.choice([r for r in self.species if r is not s])
+
+                totalDistance += s.leader.calculateCompatibilityDistance(randomSpecies.leader)
+            
+            self.averageInterspeciesDistance = totalDistance/len(self.species)
+
+            print("averageInterspeciesDistance: " + str(self.averageInterspeciesDistance))
+
+        # speciesCombinations = list(itertools.permutations(self.species))
+        # print(speciesCombinations)
+        # if len(speciesCombinations) > 1:
+        #     totalDistance: float = 0.0
+        #     for combination in speciesCombinations:
+        #         totalDistance += combination[0].leader.calculateCompatibilityDistance(combination[1].leader)
+        
 
         # mpc = self.calculateMPC()
 
@@ -217,17 +241,28 @@ class NEAT:
         self.phenotypes = newPhenotypes
 
     def speciate(self) -> None:
+
+
         # Find best leader for species from the new population
         unspeciated = list(range(0, len(self.genomes)))
         for s in self.species:
-            compareMember = random.choice(s.members)
+            # compareMember = random.choice(s.members)
+            compareMember = s.leader
+
             s.members = []
+
             candidates: List[Tuple[float, int]] = []
             for i in unspeciated:
                 genome = self.genomes[i]
+
                 distance = genome.calculateCompatibilityDistance(compareMember)
-                if (distance < self.mutationRates.newSpeciesTolerance):
+
+                if (distance < max(self.mutationRates.newSpeciesTolerance, self.averageInterspeciesDistance)):
                     candidates.append((distance, i))
+
+            if len(candidates) == 0:
+                self.species.remove(s)
+                continue
 
             _, bestCandidate = min(candidates, key=lambda x: x[0])
 
@@ -239,7 +274,8 @@ class NEAT:
         for i in unspeciated:
             genome = self.genomes[i]
 
-            closestDistance = self.mutationRates.newSpeciesTolerance
+            # closestDistance = self.mutationRates.newSpeciesTolerance
+            closestDistance = max(self.mutationRates.newSpeciesTolerance, self.averageInterspeciesDistance)
             closestSpecies = None
             for s in self.species:
                 distance = genome.calculateCompatibilityDistance(s.leader)
@@ -249,58 +285,60 @@ class NEAT:
                     closestSpecies = s
 
             if (closestSpecies is not None): # If found a compatible species
-                closestSpecies.members.append(genome)
+                # closestSpecies.members.append(genome)
+                closestSpecies.addMember(genome)
 
             else: # Else create a new species
                 chance: float = random.random()
 
                 parentSpecies: Optional[CSpecies] = random.choice(genome.parents).species
 
-                if (chance >= 0.1) and parentSpecies is not None:
-                    parentSpecies.addMember(genome)
-                else:
-                    self.speciesNumber += 1
-                    self.species.append(CSpecies(self.speciesNumber, genome))
-                    
+                # if (chance >= 0.1) and parentSpecies is not None:
+                #     parentSpecies.addMember(genome)
+                # else:
+                self.speciesNumber += 1
+                self.species.append(CSpecies(self.speciesNumber, genome))
 
 
     def reproduce(self) -> None:
         newPop = []
         for s in self.species:
-            numToSpawn = s.numToSpawn
+            # numToSpawn = s.numToSpawn
 
-            members = deepcopy(s.members)
-            members.sort(reverse=True, key=lambda x: x.fitness)
+            # members = deepcopy(s.members)
+            s.members.sort(reverse=True, key=lambda x: x.fitness)
 
             # Grabbing the top 2 performing genomes
-            for topMember in members[:2]:
+            for topMember in s.members[:2]:
                 newPop.append(topMember)
-                members.remove(topMember)
-                numToSpawn -= 1
+                # s.members.remove(topMember)
+                s.numToSpawn -= 1
 
             # Only select members who got past the milestone
-            members = [m for m in members if m.milestone >= s.milestone]
+            # s.members = [m for m in s.members if m.milestone >= s.milestone]
 
             # Only use the survival threshold fraction to use as parents for the next generation.
-            # cutoff = int(math.ceil(0.2 * len(members)))
-            # # Use at least two parents no matter what the threshold fraction result is.
-            # cutoff = max(cutoff, 2)
-            # members = members[:cutoff]
+            cutoff = int(math.ceil(0.2 * len(s.members)))
+            # Use at least two parents no matter what the threshold fraction result is.
+            cutoff = max(cutoff, 2)
+            s.members = s.members[:cutoff]
 
-            if (numToSpawn <= 0 or len(members) <= 0):
-                continue
+            # if (s.numToSpawn <= 0 or len(s.members) <= 0):
+            #     continue
 
-            for i in range(numToSpawn):
+            for i in range(s.numToSpawn):
                 baby: Optional[CGenome] = None
 
-                if (self.phase == Phase.PRUNING or random.random() > self.mutationRates.crossoverRate):
-                    baby = deepcopy(random.choice(members))
+                # if (self.phase == Phase.PRUNING or random.random() > self.mutationRates.crossoverRate):
+                if (random.random() > self.mutationRates.crossoverRate):
+                    baby = deepcopy(random.choice(s.members))
+                    baby.mutate(Phase.COMPLEXIFYING, self.mutationRates)
                 else:
                     # g1 = random.choice(members)
                     # g2 = random.choice(members)
                     
                     # Tournament selection
-                    randomMembers = [random.choice(members) for _ in range(5)]
+                    randomMembers = [random.choice(s.members) for _ in range(5)]
                     g1 = sorted(randomMembers, key=lambda x: x.fitness)[0]
                     g2 = sorted(randomMembers, key=lambda x: x.fitness)[0]
                     
@@ -309,7 +347,7 @@ class NEAT:
                 self.currentGenomeID += 1
                 baby.ID = self.currentGenomeID
 
-                baby.mutate(Phase.COMPLEXIFYING, self.mutationRates)
+                # baby.mutate(Phase.COMPLEXIFYING, self.mutationRates)
                 # baby.mutate(self.phase, self.mutationRates)
 
                 newPop.append(baby)
@@ -318,12 +356,12 @@ class NEAT:
 
     def calculateSpawnAmount(self) -> None:
         # Remove stagnant species
-        if self.phase == Phase.COMPLEXIFYING:
-            for s in self.species:
-                s.becomeOlder()
+        # if self.phase == Phase.COMPLEXIFYING:
+        for s in self.species:
+            s.becomeOlder(len(self.species) == 1)
 
-                if s.stagnant and len(self.species) > 1:
-                    self.species.remove(s)
+            if s.stagnant and len(self.species) > 1:
+                self.species.remove(s)
         
         for s in self.species:
             s.adjustFitnesses()
@@ -331,12 +369,11 @@ class NEAT:
         allFitnesses = sum([m.adjustedFitness for spc in self.species for m in spc.members])
 
         for s in self.species:
-            sumOfFitnesses = sum([m.adjustedFitness for m in s.members])
+            sumOfFitnesses: float = sum([m.adjustedFitness for m in s.members])
 
 
-            portionOfFitness = 1 if allFitnesses == 0 and sumOfFitnesses == 0 else sumOfFitnesses/allFitnesses
+            portionOfFitness: float = 1.0 if allFitnesses == 0 and sumOfFitnesses == 0 else sumOfFitnesses/allFitnesses
             s.numToSpawn = int(self.populationSize * portionOfFitness)
-            print(str(s.ID) + " to spawn " + str(portionOfFitness) +" of " + str(self.populationSize))
 
     def crossover(self, mum: CGenome, dad: CGenome) -> CGenome:
         
@@ -363,16 +400,16 @@ class NEAT:
         # print("-------------------------------------------------")
         babyLinks: List[SLinkGene] = []
         for i in combinedIndexes:
-            mumLink: Optional[SLinkGene] = deepcopy(mumDict.get(i))
-            dadLink: Optional[SLinkGene] = deepcopy(dadDict.get(i))
+            mumLink: Optional[SLinkGene] = mumDict.get(i)
+            dadLink: Optional[SLinkGene] = dadDict.get(i)
             
             if (mumLink is None):
                 if (dadLink is not None and best == dad):
-                    babyLinks.append(dadLink)
+                    babyLinks.append(deepcopy(dadLink))
 
             elif (dadLink is None):
                 if (mumLink is not None and best == mum):
-                    babyLinks.append(mumLink)
+                    babyLinks.append(deepcopy(mumLink))
 
             else:
                 babyLinks.append(random.choice([mumLink, dadLink]))
