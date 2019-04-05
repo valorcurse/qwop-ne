@@ -78,11 +78,18 @@ def update_graph_live(n, fig):
 				line=dict(width=2)))
 
 		edge_trace = go.Scatter(
-			x=data[1]['x'],
-			y=data[1]['y'],
+			x=[],
+			y=[],
 			line=dict(width=0.5,color='#888'),
 			hoverinfo='none',
 			mode='lines')
+
+		for e in data[1]['x']:
+			edge_trace['x'] += tuple(e)
+
+		for e in data[1]['y']:
+			edge_trace['y'] += tuple(e)
+
 
 		return go.Figure(
 			data=[edge_trace, node_trace],

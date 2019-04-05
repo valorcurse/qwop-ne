@@ -138,18 +138,18 @@ class CNeuralNet:
     def sigmoid(self, x):
         return 1.0 / (1.0 + math.exp(-x))
 
+    def tanh(self, x: float) -> float:
+        return np.tanh(x)
+
     def relu(self, x: float) -> float:
         return np.maximum(x, 0)
 
-    def activation(self, x: float) -> float:
-        return self.relu(x)
-    # def sigmoid(self, z):
-    #     z = max(-60.0, min(60.0, 5.0 * z))
-    #     return 1.0 / (1.0 + math.exp(-z))
+    def leakyRelu(self, x: float) -> float:
+        return x if x > 0.0 else x * 0.01
 
-    # Actually tanh
-    # def sigmoid(self, x: float) -> float:
-    #     return (math.exp(x) - math.exp(-x))/(math.exp(x) + math.exp(-x))
+    def activation(self, x: float) -> float:
+        # return self.leakyRelu(x)
+        return self.tanh(x)
 
     def calcOutput(self, neuron: SNeuron) -> float:
         linksIn = neuron.linksIn
@@ -175,10 +175,15 @@ class CNeuralNet:
 
         for currentNeuron in self.neurons[len(inputNeurons):]:
             linksIn = currentNeuron.linksIn
-            # output = np.sum(np.array([link.fromNeuron.output * link.weight for link in linksIn]))
-            output = np.array([link.fromNeuron.output * link.weight for link in linksIn])
-            # currentNeuron.output = self.activation(currentNeuron.bias + np.sum(output)) if currentNeuron is not NeuronType.OUTPUT else np.tanh(np.sum(output))
-            currentNeuron.output = np.tanh(currentNeuron.bias + np.sum(output))
+
+            if len(linksIn) == 0:
+                currentNeuron.output = 0.0
+            else:
+                # output = np.sum(np.array([link.fromNeuron.output * link.weight for link in linksIn]))
+                output = np.array([link.fromNeuron.output * link.weight for link in linksIn])
+                # currentNeuron.output = self.activation(currentNeuron.bias + np.sum(output))
+                currentNeuron.output = self.activation(currentNeuron.bias + np.sum(output))
+                
         # print(table)
         return [n.output for n in self.neurons if n.neuronType == NeuronType.OUTPUT]
 

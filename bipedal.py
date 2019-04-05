@@ -39,6 +39,7 @@ def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool
     distanceSoFar: float = 0.0
     
     actionsDone = np.zeros(8)
+    behavior = np.zeros(14)
 
     sparseness: float = 0
     nrOfSteps: int = 0
@@ -57,17 +58,19 @@ def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool
         action = phenotype.update(observation)
 
 
-        firstAction = [action[0], 0.0] if action[0] > 0 else [0.0, action[0]]
-        secondAction = [action[1], 0.0] if action[1] > 0 else [0.0, action[1]]
-        thirdAction = [action[2], 0.0] if action[2] > 0 else [0.0, action[2]]
-        fourthAction = [action[3], 0.0] if action[3] > 0 else [0.0, action[3]]
+        # firstAction = [action[0], 0.0] if action[0] > 0 else [0.0, action[0]]
+        # secondAction = [action[1], 0.0] if action[1] > 0 else [0.0, action[1]]
+        # thirdAction = [action[2], 0.0] if action[2] > 0 else [0.0, action[2]]
+        # fourthAction = [action[3], 0.0] if action[3] > 0 else [0.0, action[3]]
 
-        splitActions = [item for sublist in [firstAction, secondAction, thirdAction, fourthAction] for item in sublist]
+        # splitActions = [item for sublist in [firstAction, secondAction, thirdAction, fourthAction] for item in sublist]
         # splitActions = [abs(number) for number in splitActions]
 
-        actionsDone += np.array(np.absolute(splitActions))
+        # actionsDone += np.array(np.absolute(splitActions))
 
         observation, reward, done, info = env.step(action)
+        
+        behavior += observation[:14]
         
         if (render):
             env.render()
@@ -97,10 +100,11 @@ def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool
     # actionsDone = np.divide(actionsDone, nrOfSteps)
 
     return {
-        "actionsDone": [actionsDone],
+        # "behavior": [actionsDone],
+        "behavior": [behavior],
         "totalSpeed": totalSpeed,
         "nrOfSteps": nrOfSteps,
-        "distanceTraveled": rewardSoFar
+        "distanceTraveled": distanceSoFar
     }
 
 
@@ -131,11 +135,12 @@ if __name__ == '__main__':
         print("Loading NEAT object from file")
         with open("saves/" + args.load, "rb") as load:
             neat, innovations, novelty_map = pickle.load(load)
-            neat.populationSize = 500
+            neat.populationSize = 150
+            # neat.milestone = 157.0
     else:
         print("Creating NEAT object")
-        neat = NEAT(150, inputs, outputs, fullyConnected = False)
-        novelty_map = np.empty((0, 8), float)
+        neat = NEAT(500, inputs, outputs, fullyConnected = False)
+        novelty_map = np.empty((0, 14), float)
 
     # neat = None
     # print("Loading NEAT object from file")
@@ -146,7 +151,7 @@ if __name__ == '__main__':
     # General settings
     IDToRender = None
     highestReward = [-1000.0, 0]
-    milestone: float = 1.0
+    # milestone: float = 1.0
     # nrOfSteps: int  = 600
 
     vis = Visualize()
@@ -173,31 +178,32 @@ if __name__ == '__main__':
 
             sparseness = 0.0
             if novelty_map.size > 0:
-                kdtree = sp.spatial.KDTree(novelty_map)
+                kdtree = sp.spatial.cKDTree(novelty_map)
 
-                neighbours = kdtree.query(output["actionsDone"], k)[0]
+                neighbours = kdtree.query(output["behavior"], k)[0]
                 neighbours = neighbours[neighbours < 1E308]
 
                 sparseness = (1/k)*np.sum(neighbours)
 
 
             if (novelty_map.size < k or sparseness > p_threshold):
-                novelty_map = np.append(novelty_map, output["actionsDone"], axis=0)
+                novelty_map = np.append(novelty_map, output["behavior"], axis=0)
 
             # np.sqrt(np.power(output["nrOfSteps"]*2, 2)*dimensions)
             # totalReward = output["distanceTraveled"] + output["distanceTraveled"]*(sparseness/output["nrOfSteps"])
             
-            totalReward = sparseness + sparseness*(distanceTraveled/milestone)
+            totalReward = sparseness + sparseness*(distanceTraveled/neat.milestone)
+            # totalReward = sparseness
 
-            if (distanceTraveled > milestone):
-                milestone = distanceTraveled
+            if (distanceTraveled > neat.milestone):
+                neat.milestone = distanceTraveled
 
             if (totalReward > highestReward[0]):
                 print("")
-                print("Milestone: " + str(np.round(milestone, 2)) + 
+                print("Milestone: " + str(np.round(neat.milestone, 2)) + 
                     " | Distance Traveled: " + str(np.round(distanceTraveled, 2)) + 
                     " | Sparseness: " + str(np.round(sparseness, 2)) + 
-                    " | Actions done: " +str(np.round(output["actionsDone"], 2)) +
+                    # " | Actions done: " +str(np.round(output["actionsDone"], 2)) +
                     " | Total reward: " + str(np.round(totalReward, 2))
                 )
                 highestReward = [totalReward, phenotype.ID]

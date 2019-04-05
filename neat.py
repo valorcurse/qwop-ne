@@ -123,7 +123,8 @@ class NEAT:
 
         self.mutationRates: MutationRates = mutationRates
 
-        self.averageInterspeciesDistance = 0.0
+        self.averageInterspeciesDistance: float = 0.0
+        self.milestone: float = 1.0
 
         inputs = []
         for n in range(numOfInputs):
@@ -308,8 +309,10 @@ class NEAT:
             # members = deepcopy(s.members)
             s.members.sort(reverse=True, key=lambda x: x.fitness)
 
+            topPercent = int(math.ceil(0.01 * len(s.members)))
+            print("topPercent: " + str(topPercent))
             # Grabbing the top 2 performing genomes
-            for topMember in s.members[:2]:
+            for topMember in s.members[:topPercent]:
                 newPop.append(topMember)
                 # s.members.remove(topMember)
                 s.numToSpawn -= 1
@@ -317,8 +320,9 @@ class NEAT:
             # Only select members who got past the milestone
             # s.members = [m for m in s.members if m.milestone >= s.milestone]
 
+            # s.members.sort(reverse=True, key=lambda x: x.milestone)
             # Only use the survival threshold fraction to use as parents for the next generation.
-            cutoff = int(math.ceil(0.2 * len(s.members)))
+            cutoff = int(math.ceil(0.1 * len(s.members)))
             # Use at least two parents no matter what the threshold fraction result is.
             cutoff = max(cutoff, 2)
             s.members = s.members[:cutoff]
@@ -367,12 +371,10 @@ class NEAT:
             s.adjustFitnesses()
         
         allFitnesses = sum([m.adjustedFitness for spc in self.species for m in spc.members])
-
         for s in self.species:
             sumOfFitnesses: float = sum([m.adjustedFitness for m in s.members])
 
-
-            portionOfFitness: float = 1.0 if allFitnesses == 0 and sumOfFitnesses == 0 else sumOfFitnesses/allFitnesses
+            portionOfFitness: float = 1.0 if allFitnesses == 0.0 and sumOfFitnesses == 0.0 else sumOfFitnesses/allFitnesses
             s.numToSpawn = int(self.populationSize * portionOfFitness)
 
     def crossover(self, mum: CGenome, dad: CGenome) -> CGenome:

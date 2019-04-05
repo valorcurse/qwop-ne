@@ -39,15 +39,15 @@ class MutationRates:
 
         self.chanceToMutateBias = 0.7
 
-        self.chanceToAddNode = 0.05
-        # self.chanceToAddNode = 0.5
+        self.chanceToAddNeuron = 0.05
+        # self.chanceToAddNeuron = 0.5
         self.chanceToAddLink = 0.4
         # self.chanceToAddLink = 0.8
 
         self.chanceToAddRecurrentLink = 0.05
 
         self.chanceToDeleteNeuron = 0.05
-        self.chanceToDeleteLink = 0.1
+        self.chanceToDeleteLink = 0.4
 
         self.chanceToMutateWeight = 0.8
         self.mutationRate = 0.9
@@ -433,26 +433,31 @@ class CGenome:
         linksOut = self.getLinksOut(neuron)
         
         if len(linksIn) > 1 and len(linksOut) > 1:
-            return
-
-        if len(linksOut) == 1:
-            patchThroughNeuron = linksOut[0].toNeuron
-
-
-            for link in linksIn:
-                originNeuron = link.fromNeuron
-
+            # if random.random() < 0.1:
+            for link in neuron.linksIn:
                 self.removeLink(link)
-                self.addLink(originNeuron, patchThroughNeuron, link.weight)
 
-        elif len(linksIn) == 1:
-            originNeuron = linksIn[0].fromNeuron
-
-            for link in linksIn:
-                patchThroughNeuron = link.toNeuron
-
+            for link in neuron.linksOut:
                 self.removeLink(link)
-                self.addLink(originNeuron, patchThroughNeuron, link.weight)
+        else:
+            if len(linksOut) == 1:
+                patchThroughNeuron = linksOut[0].toNeuron
+
+
+                for link in linksIn:
+                    originNeuron = link.fromNeuron
+
+                    self.removeLink(link)
+                    self.addLink(originNeuron, patchThroughNeuron, link.weight)
+
+            elif len(linksIn) == 1:
+                originNeuron = linksIn[0].fromNeuron
+
+                for link in linksIn:
+                    patchThroughNeuron = link.toNeuron
+
+                    self.removeLink(link)
+                    self.addLink(originNeuron, patchThroughNeuron, link.weight)
         
         if neuron in self.neurons:
             self.neurons.remove(neuron)
@@ -487,34 +492,35 @@ class CGenome:
                 n.bias = random.gauss(0.0, mutationRates.maxWeightPerturbation)
 
     def mutate(self, phase: Phase, mutationRates: MutationRates) -> None:
-        # div = max(1,(self.chanceToAddNode*2 + self.chanceToAddLink*2))
+        # div = max(1,(self.chanceToAddNeuron*2 + self.chanceToAddLink*2))
         # r = random.random()
-        # if r < (self.chanceToAddNode/div):
+        # if r < (self.chanceToAddNeuron/div):
         #     baby.addNeuron()
-        # elif r < ((self.chanceToAddNode + self.chanceToAddNode)/div):
+        # elif r < ((self.chanceToAddNeuron + self.chanceToAddNeuron)/div):
         #     baby.removeNeuron()
-        # elif r < ((self.chanceToAddNode + self.chanceToAddNode +
+        # elif r < ((self.chanceToAddNeuron + self.chanceToAddNeuron +
         #            self.chanceToAddLink)/div):
         #     baby.addLink(self.chanceToAddRecurrentLink,
         #              self.numOfTriesToFindLoopedLink, self.numOfTriesToAddLink)
-        # elif r < ((self.chanceToAddNode + self.chanceToAddNode +
+        # elif r < ((self.chanceToAddNeuron + self.chanceToAddNeuron +
         #            self.chanceToAddLink + self.chanceToAddLink)/div):
         #     baby.removeLink()
 
 
         # if phase == Phase.COMPLEXIFYING:
-        if (random.random() < mutationRates.chanceToAddNode):
+        if (random.random() < mutationRates.chanceToDeleteNeuron):
+            self.removeRandomNeuron()
+
+        if (random.random() < mutationRates.chanceToDeleteLink):
+            self.removeRandomLink()
+
+        if (random.random() < mutationRates.chanceToAddNeuron):
             self.addNeuron()
 
         if (random.random() < mutationRates.chanceToAddLink):
             self.addRandomLink(mutationRates.chanceToAddRecurrentLink)
 
         # elif phase == Phase.PRUNING:
-        if (random.random() < mutationRates.chanceToDeleteNeuron):
-            self.removeRandomNeuron()
-
-        if (random.random() < mutationRates.chanceToDeleteLink):
-            self.removeRandomLink()
 
         self.mutateWeights(mutationRates)
             # mutationRates.mutationRate, mutationRates.probabilityOfWeightReplaced, mutationRates.maxWeightPerturbation)
