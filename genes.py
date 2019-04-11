@@ -35,7 +35,8 @@ class MutationRates:
     def __init__(self) -> None:
         self.crossoverRate = 0.7
 
-        self.newSpeciesTolerance = 4.0
+        # self.newSpeciesTolerance = 3.0
+        self.newSpeciesTolerance = 2.0
 
         self.chanceToMutateBias = 0.7
 
@@ -215,7 +216,9 @@ class CGenome:
         # For printing
         self.distance: float = 0.0
         
-        self.species: Optional[CSpecies] = None            
+        self.species: Optional[CSpecies] = None
+
+        self.behavior = np.zeros(14)
 
     def __lt__(self, other: CGenome) -> bool:
         return self.fitness < other.fitness
@@ -265,7 +268,6 @@ class CGenome:
         weightDifference = 0.0 if len(weightDifferences) == 0 else np.sum(weightDifferences)
 
         linkDistance = (disjointRate * disjointedLinks / longestLinks) + weightDifference * matchedRate
-        # print(linkDistance)
 
         disjointedNeurons = 0.0
         biasDifferences = []

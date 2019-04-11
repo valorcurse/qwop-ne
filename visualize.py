@@ -14,9 +14,22 @@ from phenotypes import CNeuralNet
 class Visualize():
 
 	def __init__(self) -> None:
-		self.queue = rpyc.connect("localhost", 18811)
+		pass
+
+	def connectToServer(self) -> bool:
+		try:
+			self.queue = rpyc.connect("localhost", 18811)
+			return True
+		except:
+			return False
 
 	def update(self, neuralNetwork: CNeuralNet):
+		if not self.connectToServer():
+			return
+
+			# if self.queue.closed:
+			# 	return
+
 		self.neuralNetwork = neuralNetwork
 
 		edges = {"x": [], "y": []}

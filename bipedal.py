@@ -22,7 +22,7 @@ import gym
 
 dimensions: int = 8
 k: int = 15
-max_frames: int = 1000
+max_frames: int = 10000
 maxMapDistance: float = 300.0
 
 space_range: int = 100
@@ -32,7 +32,7 @@ farthestDistance: float = np.sqrt(np.power((space_range*2), 2)*dimensions)
 # p_threshold: float = farthestDistance*0.03
 p_threshold: float = 5.0
 
-def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool) -> Dict[str, Any]:
+def testOrganism(env: Any, phenotype: CNeuralNet, render: bool) -> Dict[str, Any]:
     observation = env.reset()
     
     rewardSoFar: float = 0.0
@@ -97,12 +97,12 @@ def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool
         previousDistance = distanceSoFar
         nrOfSteps += 1
 
-    # actionsDone = np.divide(actionsDone, nrOfSteps)
+    behavior = np.divide(behavior, nrOfSteps)
 
     return {
         # "behavior": [actionsDone],
         "behavior": [behavior],
-        "totalSpeed": totalSpeed,
+        "speed": totalSpeed/nrOfSteps,
         "nrOfSteps": nrOfSteps,
         "distanceTraveled": distanceSoFar
     }
@@ -130,17 +130,18 @@ if __name__ == '__main__':
     outputs = env.action_space.shape[0]
 
     neat = None
-    novelty_map = None
+    # novelty_map = None
     if (args.load):
         print("Loading NEAT object from file")
         with open("saves/" + args.load, "rb") as load:
             neat, innovations, novelty_map = pickle.load(load)
-            neat.populationSize = 150
+            neat.populationSize = 500
+            neat.novelty_map = novelty_map
             # neat.milestone = 157.0
     else:
         print("Creating NEAT object")
         neat = NEAT(500, inputs, outputs, fullyConnected = False)
-        novelty_map = np.empty((0, 14), float)
+        # novelty_map = np.empty((0, 14), float)
 
     # neat = None
     # print("Loading NEAT object from file")
@@ -159,6 +160,7 @@ if __name__ == '__main__':
     while True:
         rewards: List[float] = []
         novelties: List[float] = []
+        behaviors: List[float] = []
         milestones: List[float] = []
 
         IDToRender = deepcopy(highestReward[1])
@@ -171,37 +173,47 @@ if __name__ == '__main__':
             if render:
                 vis.update(phenotype)
 
-            output = testOrganism(env, phenotype, novelty_map, render)
+            output = testOrganism(env, phenotype, render)
 
             distanceTraveled = output["distanceTraveled"]
+            speed = output["speed"]
+            behavior = output["behavior"]
                 # output = np.round(np.divide(output, nrOfSteps), decimals=4)
 
             sparseness = 0.0
-            if novelty_map.size > 0:
-                kdtree = sp.spatial.cKDTree(novelty_map)
+            if neat.novelty_map.size > 0:
+                kdtree = sp.spatial.cKDTree(neat.novelty_map)
 
-                neighbours = kdtree.query(output["behavior"], k)[0]
+                neighbours = kdtree.query(behavior, k)[0]
                 neighbours = neighbours[neighbours < 1E308]
 
                 sparseness = (1/k)*np.sum(neighbours)
 
 
-            if (novelty_map.size < k or sparseness > p_threshold):
-                novelty_map = np.append(novelty_map, output["behavior"], axis=0)
+            if (neat.novelty_map.size < k or sparseness > p_threshold):
+                neat.novelty_map = np.append(neat.novelty_map, behavior, axis=0)
 
             # np.sqrt(np.power(output["nrOfSteps"]*2, 2)*dimensions)
             # totalReward = output["distanceTraveled"] + output["distanceTraveled"]*(sparseness/output["nrOfSteps"])
             
-            totalReward = sparseness + sparseness*(distanceTraveled/neat.milestone)
-            # totalReward = sparseness
+            if (neat.milestone is None):
+                neat.milestone = speed
 
-            if (distanceTraveled > neat.milestone):
-                neat.milestone = distanceTraveled
+            # totalReward = sparseness + sparseness*(speed/neat.milestone)
+            # totalReward = sparseness
+            totalReward = distanceTraveled
+
+            # if (distanceTraveled > neat.milestone):
+            #     neat.milestone = distanceTraveled
+
+            if (speed > neat.milestone):
+                neat.milestone = speed
 
             if (totalReward > highestReward[0]):
                 print("")
                 print("Milestone: " + str(np.round(neat.milestone, 2)) + 
-                    " | Distance Traveled: " + str(np.round(distanceTraveled, 2)) + 
+                    # " | Distance Traveled: " + str(np.round(distanceTraveled, 2)) + 
+                    " | Speed: " + str(np.round(speed, 2)) + 
                     " | Sparseness: " + str(np.round(sparseness, 2)) + 
                     # " | Actions done: " +str(np.round(output["actionsDone"], 2)) +
                     " | Total reward: " + str(np.round(totalReward, 2))
@@ -210,6 +222,7 @@ if __name__ == '__main__':
 
             rewards.append(totalReward)
             novelties.append(sparseness)
+            behaviors.append(behavior)
             milestones.append(output["distanceTraveled"])
 
             print("\rFinished phenotype ("+ str(i) +"/"+ str(len(neat.phenotypes)) +")", end='')
@@ -221,7 +234,7 @@ if __name__ == '__main__':
         print("Generation: " + str(neat.generation))
         print("Number of species: " + str(len(neat.species)))
         print("Phase: " + str(neat.phase))
-        print("Novelty map: " + str(novelty_map.data.shape))
+        print("Novelty map: " + str(neat.novelty_map.data.shape))
         # print("Milestones: " + str(milestones))
         table = PrettyTable(["ID", "age", "members", "min. milestone", "max milestone", "max fitness", "adj. fitness", "max distance", "stag", "neurons", "links", "avg.weight", "avg. bias", "avg. compat.", "to spawn"])
         for s in neat.species:
@@ -247,17 +260,20 @@ if __name__ == '__main__':
         for index, genome in enumerate(neat.genomes):
             genome.milestone = milestones[index]
 
+        for index, genome in enumerate(neat.genomes):
+            genome.behavior = behaviors[index]
+
         neat.epoch(rewards)
 
-        # Save current generation
-        saveFileName = saveFolder + "." + str(neat.generation)
-        with open(saveDirectory + "/" + saveFileName, 'wb') as binaryFile:
-            pickle.dump([neat, innovations, novelty_map], binaryFile)
+        # # Save current generation
+        # saveFileName = saveFolder + "." + str(neat.generation)
+        # with open(saveDirectory + "/" + saveFileName, 'wb') as binaryFile:
+        #     pickle.dump([neat, innovations], binaryFile)
 
-        # Append to summary file
-        with open(saveDirectory + "/summary.txt", 'a') as textFile:
-            textFile.write("Generation " + str(neat.generation) + "\n")
-            textFile.write(table.get_string())
-            textFile.write("\n\n")
+        # # Append to summary file
+        # with open(saveDirectory + "/summary.txt", 'a') as textFile:
+        #     textFile.write("Generation " + str(neat.generation) + "\n")
+        #     textFile.write(table.get_string())
+        #     textFile.write("\n\n")
 
     env.close()

@@ -5,6 +5,7 @@ from random import randint
 
 import math
 import numpy as np
+from scipy import spatial
 from enum import Enum
 
 from copy import copy
@@ -63,6 +64,7 @@ class CSpecies:
     def addMember(self, genome: CGenome) -> None:
         self.members.append(genome)
         genome.species = self
+        genomes.distance = spatial.distance.euclidean(genome.behavior, self.leader.behavior)
 
     def best(self) -> CGenome:
         return max(self.members)
@@ -124,7 +126,9 @@ class NEAT:
         self.mutationRates: MutationRates = mutationRates
 
         self.averageInterspeciesDistance: float = 0.0
-        self.milestone: float = 1.0
+        self.milestone: float = None
+
+        self.novelty_map = np.empty((0, 14), float)
 
         inputs = []
         for n in range(numOfInputs):
@@ -148,13 +152,17 @@ class NEAT:
                 for output in outputs:
                     new_link = innovations.createNewLink(input, output, True, 1.0)
                     links.append(new_link)
-
         inputs.extend(outputs)
+
         newGenome = CGenome(self.currentGenomeID, inputs, links, numOfInputs, numOfOutputs)
+        self.species.append(CSpecies(self.speciesNumber, newGenome))
+
         newGenome.parents = [newGenome]
-        for i in range(self.populationSize):
+        for i in range(self.populationSize-1):
             print("\rCreating genomes (" + str(i + 1) + "/" + str(self.populationSize) + ")", end='')
-            self.genomes.append(deepcopy(newGenome))
+            newGenome: CGenome = deepcopy(newGenome)
+            self.species[self.speciesNumber].addMember(newGenome)
+            self.genomes.append(newGenome)
             self.currentGenomeID += 1
 
         print("")
@@ -169,7 +177,9 @@ class NEAT:
         # print("mpc", mpc)
         # print("mpc threshold", self.mpcThreshold)
 
-        self.speciate()
+        # self.speciate()
+
+
         self.epoch([0]*len(self.genomes))
 
 
@@ -190,16 +200,17 @@ class NEAT:
 
         self.calculateSpawnAmount()
  
-        self.reproduce()
-        
         self.speciate()
+        
+        self.reproduce()
 
         if len(self.species) > 1:
             totalDistance: float = 0.0
             for s in self.species:
                 randomSpecies: Species = random.choice([r for r in self.species if r is not s])
 
-                totalDistance += s.leader.calculateCompatibilityDistance(randomSpecies.leader)
+                # totalDistance += s.leader.calculateCompatibilityDistance(randomSpecies.leader)
+                totalDistance += spatial.distance.euclidean(s.leader.behavior, randomSpecies.leader.behavior)
             
             self.averageInterspeciesDistance = totalDistance/len(self.species)
 
@@ -232,6 +243,9 @@ class NEAT:
         #         self.mpcStagnation = 0
         #         self.lowestMPC = mpc
 
+        # for s in self.species:
+            # print("Species: %d | members: %d" % (s.ID, len([m for m in s.members])))
+
 
         newPhenotypes = []
         for genome in self.genomes:
@@ -256,7 +270,8 @@ class NEAT:
             for i in unspeciated:
                 genome = self.genomes[i]
 
-                distance = genome.calculateCompatibilityDistance(compareMember)
+                # distance = genome.calculateCompatibilityDistance(compareMember)
+                distance = spatial.distance.euclidean(genome.behavior, compareMember.behavior);
 
                 if (distance < max(self.mutationRates.newSpeciesTolerance, self.averageInterspeciesDistance)):
                     candidates.append((distance, i))
@@ -279,7 +294,9 @@ class NEAT:
             closestDistance = max(self.mutationRates.newSpeciesTolerance, self.averageInterspeciesDistance)
             closestSpecies = None
             for s in self.species:
-                distance = genome.calculateCompatibilityDistance(s.leader)
+                # distance = genome.calculateCompatibilityDistance(s.leader)
+                distance = spatial.distance.euclidean(genome.behavior, s.leader.behavior);
+
                 # If genome falls within tolerance of species
                 if (distance < closestDistance):
                     closestDistance = distance
@@ -290,9 +307,9 @@ class NEAT:
                 closestSpecies.addMember(genome)
 
             else: # Else create a new species
-                chance: float = random.random()
+                # chance: float = random.random()
 
-                parentSpecies: Optional[CSpecies] = random.choice(genome.parents).species
+                # parentSpecies: Optional[CSpecies] = random.choice(genome.parents).species
 
                 # if (chance >= 0.1) and parentSpecies is not None:
                 #     parentSpecies.addMember(genome)
@@ -310,7 +327,7 @@ class NEAT:
             s.members.sort(reverse=True, key=lambda x: x.fitness)
 
             topPercent = int(math.ceil(0.01 * len(s.members)))
-            print("topPercent: " + str(topPercent))
+            # print("topPercent: " + str(topPercent))
             # Grabbing the top 2 performing genomes
             for topMember in s.members[:topPercent]:
                 newPop.append(topMember)
@@ -351,10 +368,15 @@ class NEAT:
                 self.currentGenomeID += 1
                 baby.ID = self.currentGenomeID
 
+                parentSpecies: Optional[CSpecies] = random.choice(baby.parents).species
+                parentSpecies.addMember(baby)
+
                 # baby.mutate(Phase.COMPLEXIFYING, self.mutationRates)
                 # baby.mutate(self.phase, self.mutationRates)
 
                 newPop.append(baby)
+
+            # print("Species %d | toSpawn: %d | spawned: %d" % (s.ID, s.numToSpawn, len(newPop)))
 
         self.genomes = newPop
 
@@ -371,11 +393,14 @@ class NEAT:
             s.adjustFitnesses()
         
         allFitnesses = sum([m.adjustedFitness for spc in self.species for m in spc.members])
+        # print("allFitnesses: " + str(allFitnesses))
         for s in self.species:
             sumOfFitnesses: float = sum([m.adjustedFitness for m in s.members])
 
             portionOfFitness: float = 1.0 if allFitnesses == 0.0 and sumOfFitnesses == 0.0 else sumOfFitnesses/allFitnesses
             s.numToSpawn = int(self.populationSize * portionOfFitness)
+
+            # print("Species: %d | sumOfFitnesses: %f | portionOfFitness: %f | toSpawn: %d" % (s.ID, sumOfFitnesses, portionOfFitness, s.numToSpawn))
 
     def crossover(self, mum: CGenome, dad: CGenome) -> CGenome:
         
