@@ -102,7 +102,7 @@ def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool
     return {
         # "behavior": [actionsDone],
         "behavior": [behavior],
-        "totalSpeed": totalSpeed,
+        "speed": totalSpeed,
         "nrOfSteps": nrOfSteps,
         "distanceTraveled": distanceSoFar
     }
@@ -174,6 +174,7 @@ if __name__ == '__main__':
             output = testOrganism(env, phenotype, novelty_map, render)
 
             distanceTraveled = output["distanceTraveled"]
+            speed = output["speed"]/output["nrOfSteps"]
                 # output = np.round(np.divide(output, nrOfSteps), decimals=4)
 
             sparseness = 0.0
@@ -192,16 +193,17 @@ if __name__ == '__main__':
             # np.sqrt(np.power(output["nrOfSteps"]*2, 2)*dimensions)
             # totalReward = output["distanceTraveled"] + output["distanceTraveled"]*(sparseness/output["nrOfSteps"])
             
-            totalReward = sparseness + sparseness*(distanceTraveled/neat.milestone)
+            totalReward = sparseness + sparseness*(speed/neat.milestone)
             # totalReward = sparseness
 
-            if (distanceTraveled > neat.milestone):
-                neat.milestone = distanceTraveled
+            if (speed > neat.milestone):
+                neat.milestone = speed
 
             if (totalReward > highestReward[0]):
                 print("")
                 print("Milestone: " + str(np.round(neat.milestone, 2)) + 
                     " | Distance Traveled: " + str(np.round(distanceTraveled, 2)) + 
+                    " | Speed: " + str(np.round(speed, 2)) + 
                     " | Sparseness: " + str(np.round(sparseness, 2)) + 
                     # " | Actions done: " +str(np.round(output["actionsDone"], 2)) +
                     " | Total reward: " + str(np.round(totalReward, 2))

@@ -124,7 +124,7 @@ class NEAT:
         self.mutationRates: MutationRates = mutationRates
 
         self.averageInterspeciesDistance: float = 0.0
-        self.milestone: float = 1.0
+        self.milestone: float = 0.01
 
         inputs = []
         for n in range(numOfInputs):
@@ -197,11 +197,11 @@ class NEAT:
         if len(self.species) > 1:
             totalDistance: float = 0.0
             for s in self.species:
-                randomSpecies: Species = random.choice([r for r in self.species if r is not s])
+                randomSpecies: CSpecies = random.choice([r for r in self.species if r is not s])
 
                 totalDistance += s.leader.calculateCompatibilityDistance(randomSpecies.leader)
             
-            self.averageInterspeciesDistance = totalDistance/len(self.species)
+            self.averageInterspeciesDistance = max(self.mutationRates.newSpeciesTolerance, (totalDistance/len(self.species))*0.5)
 
             print("averageInterspeciesDistance: " + str(self.averageInterspeciesDistance))
 
