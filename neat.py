@@ -1,20 +1,23 @@
 from typing import List, Set, Dict, Tuple, Optional
 
 import random
+from enum import Enum
 from random import randint
 
 import math
 import numpy as np
-from enum import Enum
+from scipy import spatial
+from scipy import interpolate
+from sklearn.cluster import KMeans
+from sklearn.linear_model import LinearRegression
 
+import itertools
 from copy import copy
 from copy import deepcopy
-import itertools
 from operator import attrgetter
 
 from prettytable import PrettyTable
 
-# import genes
 from genes import NeuronType
 from genes import CGenome
 from genes import SLinkGene
@@ -104,6 +107,7 @@ class CSpecies:
             self.stagnant = True
 
 class NEAT:
+    behaviorDimensions = 14
 
     def __init__(self, numberOfGenomes: int, numOfInputs: int, numOfOutputs: int, mutationRates: MutationRates=MutationRates(), fullyConnected: bool=False) -> None:
 
@@ -125,6 +129,10 @@ class NEAT:
 
         self.averageInterspeciesDistance: float = 0.0
         self.milestone: float = 0.01
+
+        self.noveltyArchive: List[np.ndarray] = [np.empty((0, self.behaviorDimensions), float)]
+
+        self.prediction = None
 
         inputs = []
         for n in range(numOfInputs):
@@ -159,34 +167,102 @@ class NEAT:
 
         print("")
 
-
-        # mpc = self.calculateMPC()
-        # mpc = 100
-        # self.mpcThreshold: int = mpc + mutationRates.mpcMargin
-        # self.lowestMPC: int = mpc
-        # self.mpcStagnation: int = 0
-        
-        # print("mpc", mpc)
-        # print("mpc threshold", self.mpcThreshold)
-
         self.speciate()
         self.epoch([0]*len(self.genomes))
 
 
-    # def calculateMPC(self):
-    #     allMutations = [[n for n in g.neurons] + [l for l in g.links] for g in self.genomes]
-    #     nrOfMutations = len([item for sublist in allMutations for item in sublist])
-    #     return (nrOfMutations / len(self.genomes))
+    def addBehavior(self, behavior: np.array) -> None:
+        if len(self.noveltyArchive) <= self.generation:
+            self.noveltyArchive.append(np.empty((0, self.behaviorDimensions), float))
+
+        noveltyMap = self.noveltyArchive[self.generation]
+        self.noveltyArchive[self.generation] = np.append(noveltyMap, [behavior], axis=0)
+
+        # print(self.noveltyArchive[self.generation])
+
+    def buildPredictionModel(self) -> np.array:
+        k = 100
+        
+        print("Novelty archive: %d"%(len(self.noveltyArchive)))
+
+        if len(self.noveltyArchive) <= 3:
+            return np.empty((0, 0), float)
+        
+        # centers = np.empty((0, k, self.behaviorDimensions), float)
+        centers = []
+        lastCenters = None
+        for X in self.noveltyArchive[-3:-1]:
+            # print(X)
+            kmeans = KMeans(
+                n_clusters=k, 
+                init= "k-means++" if (lastCenters is None) else lastCenters,
+                random_state=0).fit(X)
+            # print(kmeans.cluster_centers_)
+            # centers.append(kmeans.cluster_centers_)
+
+            # print(centers.shape, kmeans.cluster_centers_.shape)
+            # centers = np.append(centers, [kmeans.cluster_centers_], axis=0)
+            centers.append(kmeans.cluster_centers_)
+            lastCenters = kmeans.cluster_centers_
+
+        # print(centers)
+
+        # predictedPoints = np.empty((0, self.behaviorDimensions), float)
+        # for center in centers:
+        #     tck = scipy.interpolate.splrep([1, 2, 3, 4, 5], [1, 4, 9, 16, 25], k=1, s=0)
+        #     interpolate.splev(6, tck)
+
+        #     extrapolate = interpolate.CubicSpline([0, 1], center, extrapolate=True)
+
+        # print(centers.T.shape)
+        regr = LinearRegression()
+        predictions = np.empty((0, self.behaviorDimensions), float)
+        for i in range(k):
+            points = np.array([np.array(j[[i], :]).flatten() for j in centers])
+            regr.fit(np.array([0, 1]).reshape(-1, 1), points)
+            prediction = regr.predict(np.array([2]).reshape(-1, 1))
+            # print(predictions.shape, prediction.shape)
+            predictions = np.append(predictions, prediction, axis=0)
+
+            # for center in [np.array(j[:, [i]]).flatten() for j in centers]:
+                # print(center.shape)
+
+
+
+        # predictedPoints = interpolate.CubicSpline([i for i in range(len(centers))], )
+        
+
+        return predictions
+
+    def predict(self, behavior: np.float) -> float:
+        return 0.0
 
     def epoch(self, fitnessScores: List[float], novelty: Optional[List[float]] = None) -> None:
         
+        predictions = self.buildPredictionModel()
+        # print(predictions.shape)
+        if predictions.shape[0] > 0:
+            behaviors = self.noveltyArchive[-1]
+
+            # print(predictions.shape)
+            kdtree = spatial.cKDTree(predictions)
+
+            for index, genome in enumerate(self.genomes):
+                behavior = behaviors[index]
+                genome.fitness = kdtree.query(behavior, 1)[0]
+
         if novelty is not None:
             for index, genome in enumerate(self.genomes):
                 genome.novelty = novelty[index]
 
+        # print([g.fitness for g in self.genomes])
+
         # Set fitness score to their respesctive genome
-        for index, genome in enumerate(self.genomes):
-            genome.fitness = fitnessScores[index]
+        # for index, genome in enumerate(self.genomes):
+        #     genome.fitness = fitnessScores[index]
+
+        # for index, genome in enumerate(self.genomes):
+        #     genome.fitness = 0.0
 
         self.calculateSpawnAmount()
  

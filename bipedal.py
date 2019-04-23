@@ -6,6 +6,7 @@ from neat import NEAT, CNeuralNet
 from visualize import Visualize
 
 from prettytable import PrettyTable
+from operator import attrgetter
 import numpy as np
 import scipy as sp
 import math
@@ -101,7 +102,7 @@ def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool
 
     return {
         # "behavior": [actionsDone],
-        "behavior": [behavior],
+        "behavior": behavior,
         "speed": totalSpeed,
         "nrOfSteps": nrOfSteps,
         "distanceTraveled": distanceSoFar
@@ -150,7 +151,7 @@ if __name__ == '__main__':
 
     # General settings
     IDToRender = None
-    highestReward = [-1000.0, 0]
+    highestReward = None
     # milestone: float = 1.0
     # nrOfSteps: int  = 600
 
@@ -158,12 +159,24 @@ if __name__ == '__main__':
 
     while True:
         rewards: List[float] = []
-        novelties: List[float] = []
+        behaviors: List[List[float]] = []
         milestones: List[float] = []
 
-        IDToRender = deepcopy(highestReward[1])
-        highestReward = [-1000.0, 0]
+        # IDToRender = deepcopy(highestReward[1])
+        # highestReward = [g for g]
+
         
+        # if (totalReward > highestReward[0]):
+        #         print("")
+        #         print("Milestone: " + str(np.round(neat.milestone, 2)) + 
+        #             " | Distance Traveled: " + str(np.round(distanceTraveled, 2)) + 
+        #             " | Speed: " + str(np.round(speed, 2)) + 
+        #             " | Sparseness: " + str(np.round(sparseness, 2)) + 
+        #             # " | Actions done: " +str(np.round(output["actionsDone"], 2)) +
+        #             " | Total reward: " + str(np.round(totalReward, 2))
+        #         )
+        #         highestReward = [totalReward, phenotype.ID]
+
         for i, phenotype in enumerate(neat.phenotypes):
 
             render = phenotype.ID == IDToRender
@@ -175,43 +188,44 @@ if __name__ == '__main__':
 
             distanceTraveled = output["distanceTraveled"]
             speed = output["speed"]/output["nrOfSteps"]
+            behavior = output["behavior"]
                 # output = np.round(np.divide(output, nrOfSteps), decimals=4)
 
-            sparseness = 0.0
-            if novelty_map.size > 0:
-                kdtree = sp.spatial.cKDTree(novelty_map)
+            # sparseness = 0.0
+            # if novelty_map.size > 0:
+            #     kdtree = sp.spatial.cKDTree(novelty_map)
 
-                neighbours = kdtree.query(output["behavior"], k)[0]
-                neighbours = neighbours[neighbours < 1E308]
+            #     neighbours = kdtree.query(behavior, k)[0]
+            #     neighbours = neighbours[neighbours < 1E308]
 
-                sparseness = (1/k)*np.sum(neighbours)
+            #     sparseness = (1/k)*np.sum(neighbours)
 
 
-            if (novelty_map.size < k or sparseness > p_threshold):
-                novelty_map = np.append(novelty_map, output["behavior"], axis=0)
+            # if (novelty_map.size < k or sparseness > p_threshold):
+                # novelty_map = np.append(novelty_map, behavior, axis=0)
 
             # np.sqrt(np.power(output["nrOfSteps"]*2, 2)*dimensions)
             # totalReward = output["distanceTraveled"] + output["distanceTraveled"]*(sparseness/output["nrOfSteps"])
             
-            totalReward = sparseness + sparseness*(speed/neat.milestone)
+            # totalReward = sparseness + sparseness*(speed/neat.milestone)
             # totalReward = sparseness
 
             if (speed > neat.milestone):
                 neat.milestone = speed
 
-            if (totalReward > highestReward[0]):
-                print("")
-                print("Milestone: " + str(np.round(neat.milestone, 2)) + 
-                    " | Distance Traveled: " + str(np.round(distanceTraveled, 2)) + 
-                    " | Speed: " + str(np.round(speed, 2)) + 
-                    " | Sparseness: " + str(np.round(sparseness, 2)) + 
-                    # " | Actions done: " +str(np.round(output["actionsDone"], 2)) +
-                    " | Total reward: " + str(np.round(totalReward, 2))
-                )
-                highestReward = [totalReward, phenotype.ID]
+            # if (totalReward > highestReward[0]):
+            #     print("")
+            #     print("Milestone: " + str(np.round(neat.milestone, 2)) + 
+            #         " | Distance Traveled: " + str(np.round(distanceTraveled, 2)) + 
+            #         " | Speed: " + str(np.round(speed, 2)) + 
+            #         " | Sparseness: " + str(np.round(sparseness, 2)) + 
+            #         # " | Actions done: " +str(np.round(output["actionsDone"], 2)) +
+            #         " | Total reward: " + str(np.round(totalReward, 2))
+            #     )
+            #     highestReward = [totalReward, phenotype.ID]
 
-            rewards.append(totalReward)
-            novelties.append(sparseness)
+            # rewards.append(totalReward)
+            behaviors.append(behavior)
             milestones.append(output["distanceTraveled"])
 
             print("\rFinished phenotype ("+ str(i) +"/"+ str(len(neat.phenotypes)) +")", end='')
@@ -249,7 +263,14 @@ if __name__ == '__main__':
         for index, genome in enumerate(neat.genomes):
             genome.milestone = milestones[index]
 
+        for behavior in behaviors:
+            neat.addBehavior(behavior)
+
+
         neat.epoch(rewards)
+
+        # IDToRender = max(g.fitness for g in neat.genomes).ID
+        IDToRender = max(neat.genomes, key=attrgetter('fitness')).ID
 
         # Save current generation
         saveFileName = saveFolder + "." + str(neat.generation)
