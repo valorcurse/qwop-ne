@@ -270,7 +270,7 @@ if __name__ == '__main__':
         neat.epoch(rewards)
 
         # IDToRender = max(g.fitness for g in neat.genomes).ID
-        IDToRender = max(neat.genomes, key=attrgetter('fitness')).ID
+        IDToRender =  max(neat.genomes, key=attrgetter('fitness')).ID if neat.generation > neat.h else -1
 
         # Save current generation
         saveFileName = saveFolder + "." + str(neat.generation)

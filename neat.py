@@ -4,6 +4,11 @@ import random
 from enum import Enum
 from random import randint
 
+def warn(*args, **kwargs):
+    pass
+import warnings
+warnings.warn = warn
+
 import math
 import numpy as np
 from scipy import spatial
@@ -91,6 +96,7 @@ class CSpecies:
     def becomeOlder(self, alone: bool) -> None:
         self.age += 1
 
+        # print([m.fitness for m in self.members])
         highestFitness = max([m.fitness for m in self.members])
 
         if alone:
@@ -134,6 +140,10 @@ class NEAT:
 
         self.prediction = None
 
+        self.k: int = int(self.populationSize*0.2)
+        self.h: int = 10
+        self.n: int = 2
+
         inputs = []
         for n in range(numOfInputs):
             print("\rCreating inputs neurons (" + str(n + 1) + "/" + str(numOfInputs) + ")", end='')
@@ -168,7 +178,16 @@ class NEAT:
         print("")
 
         self.speciate()
-        self.epoch([0]*len(self.genomes))
+
+        # for i in range(self.h):
+            # for g in self.genomes:
+                # self.addBehavior(np.zeros(14))
+
+            # self.epoch([0]*len(self.genomes))
+
+        self.addBehavior(np.zeros(14))
+
+        self.epoch([0]*len(self.genomes))   
 
 
     def addBehavior(self, behavior: np.array) -> None:
@@ -181,20 +200,20 @@ class NEAT:
         # print(self.noveltyArchive[self.generation])
 
     def buildPredictionModel(self) -> np.array:
-        k = 100
         
         print("Novelty archive: %d"%(len(self.noveltyArchive)))
 
-        if len(self.noveltyArchive) <= 3:
+        if len(self.noveltyArchive) <= self.h+1:
             return np.empty((0, 0), float)
         
         # centers = np.empty((0, k, self.behaviorDimensions), float)
         centers = []
         lastCenters = None
-        for X in self.noveltyArchive[-3:-1]:
+        for X in self.noveltyArchive[-(self.h+1):-1]:
             # print(X)
+            
             kmeans = KMeans(
-                n_clusters=k, 
+                n_clusters=self.k, 
                 init= "k-means++" if (lastCenters is None) else lastCenters,
                 random_state=0).fit(X)
             # print(kmeans.cluster_centers_)
@@ -205,7 +224,7 @@ class NEAT:
             centers.append(kmeans.cluster_centers_)
             lastCenters = kmeans.cluster_centers_
 
-        # print(centers)
+        # print(centers) 
 
         # predictedPoints = np.empty((0, self.behaviorDimensions), float)
         # for center in centers:
@@ -217,10 +236,10 @@ class NEAT:
         # print(centers.T.shape)
         regr = LinearRegression()
         predictions = np.empty((0, self.behaviorDimensions), float)
-        for i in range(k):
+        for i in range(self.k):
             points = np.array([np.array(j[[i], :]).flatten() for j in centers])
-            regr.fit(np.array([0, 1]).reshape(-1, 1), points)
-            prediction = regr.predict(np.array([2]).reshape(-1, 1))
+            regr.fit(np.array([i for i in range(self.h)]).reshape(-1, 1), points)
+            prediction = regr.predict(np.array([self.h]).reshape(-1, 1))
             # print(predictions.shape, prediction.shape)
             predictions = np.append(predictions, prediction, axis=0)
 
@@ -244,12 +263,13 @@ class NEAT:
         if predictions.shape[0] > 0:
             behaviors = self.noveltyArchive[-1]
 
-            # print(predictions.shape)
             kdtree = spatial.cKDTree(predictions)
 
             for index, genome in enumerate(self.genomes):
                 behavior = behaviors[index]
-                genome.fitness = kdtree.query(behavior, 1)[0]
+                neighbours = kdtree.query(behavior, self.n)[0]
+                surprise = (1/self.n)*np.sum(neighbours)
+                genome.fitness = surprise
 
         if novelty is not None:
             for index, genome in enumerate(self.genomes):
