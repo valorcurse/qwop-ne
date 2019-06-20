@@ -34,12 +34,13 @@ p_threshold: float = 5.0
 
 def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool) -> Dict[str, Any]:
     observation = env.reset()
+    action = np.zeros(4)
     
     rewardSoFar: float = 0.0
     distanceSoFar: float = 0.0
     
     actionsDone = np.zeros(8)
-    behavior = np.zeros(14)
+    behavior = np.zeros(4)
 
     sparseness: float = 0
     nrOfSteps: int = 0
@@ -52,10 +53,14 @@ def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool
         # phenotype.draw()
         # Visualize(phenotype).draw()
 
+
+
     # while not complete:
     for _ in range(max_frames):
 # 
-        action = phenotype.update(observation)
+        allInputs = np.append(observation, action, axis=0)
+        action = phenotype.update(allInputs)
+
 
 
         # firstAction = [action[0], 0.0] if action[0] > 0 else [0.0, action[0]]
@@ -70,7 +75,8 @@ def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool
 
         observation, reward, done, info = env.step(action)
         
-        behavior += observation[:14]
+        # behavior += observation[:14]
+        behavior += action
         
         if (render):
             env.render()
@@ -126,8 +132,8 @@ if __name__ == '__main__':
 
     env = gym.make('BipedalWalker-v2')
 
-    inputs = env.observation_space.shape[0]
     outputs = env.action_space.shape[0]
+    inputs = env.observation_space.shape[0] + outputs
 
     neat = None
     novelty_map = None
@@ -140,7 +146,7 @@ if __name__ == '__main__':
     else:
         print("Creating NEAT object")
         neat = NEAT(500, inputs, outputs, fullyConnected = False)
-        novelty_map = np.empty((0, 14), float)
+        novelty_map = np.empty((0, 4), float)
 
     # neat = None
     # print("Loading NEAT object from file")

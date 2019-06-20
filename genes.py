@@ -12,6 +12,10 @@ from enum import Enum
 import itertools
 from copy import deepcopy
 
+import keras
+from keras.models import Sequential
+from keras.layers import Dense, Activation
+
 import numpy as np
 from matplotlib import pyplot
 import matplotlib.patches as patches
@@ -35,7 +39,7 @@ class MutationRates:
     def __init__(self) -> None:
         self.crossoverRate = 0.7
 
-        self.newSpeciesTolerance = 2.0
+        self.newSpeciesTolerance = 3.0
 
         self.chanceToMutateBias = 0.7
 
@@ -529,32 +533,76 @@ class CGenome:
 
         self.links.sort()
 
-    def createPhenotype(self) -> CNeuralNet:
-        phenotypeNeurons = []
+    # def createPhenotype(self) -> CNeuralNet:
+    #     phenotypeNeurons = []
 
-        for neuron in self.neurons:
-            newNeuron = SNeuron(neuron.neuronType,
-                        neuron.ID,
-                        neuron.bias,
-                        neuron.splitY)
+    #     for neuron in self.neurons:
+    #         newNeuron = SNeuron(neuron.neuronType,
+    #                     neuron.ID,
+    #                     neuron.bias,
+    #                     neuron.splitY)
 
-            phenotypeNeurons.append(newNeuron)
+    #         phenotypeNeurons.append(newNeuron)
 
-        for link in self.links:
-            if (link.enabled):
-                fromNeuron = next((neuron
-                                   for neuron in phenotypeNeurons if (neuron.ID == link.fromNeuron.ID)), None)
-                toNeuron = next((neuron
-                                 for neuron in phenotypeNeurons if (neuron.ID == link.toNeuron.ID)), None)
+    #     for link in self.links:
+    #         if (link.enabled):
+    #             fromNeuron = next((neuron
+    #                                for neuron in phenotypeNeurons if (neuron.ID == link.fromNeuron.ID)), None)
+    #             toNeuron = next((neuron
+    #                              for neuron in phenotypeNeurons if (neuron.ID == link.toNeuron.ID)), None)
 
-                if (not fromNeuron) or (not toNeuron):
-                    continue
+    #             if (not fromNeuron) or (not toNeuron):
+    #                 continue
 
-                tmpLink = SLink(fromNeuron,
-                                toNeuron,
-                                link.weight,
-                                link.recurrent)
+    #             tmpLink = SLink(fromNeuron,
+    #                             toNeuron,
+    #                             link.weight,
+    #                             link.recurrent)
 
-                toNeuron.linksIn.append(tmpLink)
+    #             toNeuron.linksIn.append(tmpLink)
 
-        return CNeuralNet(phenotypeNeurons, self.ID)
+    #     return CNeuralNet(phenotypeNeurons, self.ID)
+
+    def createPhenotype(self) -> Sequential:
+        model = Sequential()
+
+        model.add(Dense(self.inputs, input_dim=1))
+
+        depths = set(n.splitY for n in self.neurons)
+        depths.remove(0) # Remove the input layer
+        for depth in depths:
+            neuronsInDepth = [n for n in self.neurons if n.splitY == depth]
+
+            model.add(Dense(len(neuronsInDepth)))
+
+        for lNr, layer in enumerate(model.layers):
+            if lNr == 0:
+                continue
+
+            depth = depths[lNr]
+
+            neurons = [n for n in self.neurons if n.splitY == depth]
+            sorted(neurons, key=lambda x: x.ID)
+
+            # previousNeurons = [n for n in self.neurons if n.splitY == depths[lNr-1]]
+            # sorted(previousNeurons, key=lambda x: x.ID)
+            previousNeurons = [n.ID for n in self.neurons if n.splitY == depths[lNr-1]]
+            sorted(previousNeurons)
+
+            weights = np.empty((len(neurons), len(previousNeurons)))
+            for i, neuron in enumerate(neurons):
+
+                links = [l for l in self.links if l.toNeuron.ID == neuron.ID] # incoming links for this neuron
+
+                for l in links:
+                    j = previousNeurons.index(l.fromNeuron.ID)
+                    weights[i, j] = l.weight
+
+                # for j, prevNeuron in enumerate(previousNeurons):
+                #     link = next((l for l in self.links if l.fromNeuron.ID == prevNeuron.ID), None)
+                #     if link is not None:
+                #         weights[i, j] = link.weight
+
+            layer.set_weights(weights)
+
+        return model
