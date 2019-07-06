@@ -9,7 +9,7 @@ import dash_core_components as dcc
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 
-from phenotypes import CNeuralNet
+from neat.phenotypes import CNeuralNet
 
 class Visualize():
 

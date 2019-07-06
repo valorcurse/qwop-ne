@@ -1,7 +1,8 @@
 from typing import List, Set, Dict, Tuple, Optional, Any
 
-from genes import innovations
-from neat import NEAT, CNeuralNet
+from neat.neat import NEAT
+from neat.genes import innovations
+from neat.phenotypes import CNeuralNet
 
 from visualize import Visualize
 
@@ -154,7 +155,7 @@ if __name__ == '__main__':
     # milestone: float = 1.0
     # nrOfSteps: int  = 600
 
-    vis = Visualize()
+    # vis = Visualize()
 
     while True:
         rewards: List[float] = []
@@ -168,8 +169,8 @@ if __name__ == '__main__':
 
             render = phenotype.ID == IDToRender
 
-            if render:
-                vis.update(phenotype)
+            # if render:
+                # vis.update(phenotype)
 
             output = testOrganism(env, phenotype, novelty_map, render)
 
