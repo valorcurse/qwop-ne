@@ -3,6 +3,7 @@ from typing import List, Set, Dict, Tuple, Optional, Any
 from neat.neat import NEAT
 from neat.genes import innovations
 from neat.phenotypes import CNeuralNet
+from neat.defaultPopulation import DefaultPopulation
 
 from visualize import Visualize
 
@@ -223,12 +224,12 @@ if __name__ == '__main__':
         # print(rewards)
         print("Running epoch")
         print("Generation: " + str(neat.generation))
-        print("Number of species: " + str(len(neat.species)))
+        print("Number of species: " + str(len(neat.population.species)))
         print("Phase: " + str(neat.phase))
         print("Novelty map: " + str(novelty_map.data.shape))
         # print("Milestones: " + str(milestones))
         table = PrettyTable(["ID", "age", "members", "min. milestone", "max milestone", "max fitness", "adj. fitness", "max distance", "stag", "neurons", "links", "avg.weight", "avg. bias", "avg. compat.", "to spawn"])
-        for s in neat.species:
+        for s in neat.population.species:
             table.add_row([
                 s.ID,                                                       # Species ID
                 s.age,                                                      # Age
@@ -248,7 +249,7 @@ if __name__ == '__main__':
 
         print(table)
 
-        for index, genome in enumerate(neat.genomes):
+        for index, genome in enumerate(neat.population.genomes):
             genome.milestone = milestones[index]
 
         neat.epoch(rewards)
