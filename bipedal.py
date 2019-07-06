@@ -1,7 +1,8 @@
 from typing import List, Set, Dict, Tuple, Optional, Any
 
-from genes import innovations
-from neat import NEAT, CNeuralNet
+from neat.neat import NEAT
+from neat.genes import innovations
+from neat.phenotypes import CNeuralNet
 
 from visualize import Visualize
 
@@ -15,7 +16,6 @@ import sys
 import _pickle as pickle
 import argparse
 
-from platypus import NSGAII, Problem, Real
 
 from copy import deepcopy
 
@@ -108,11 +108,6 @@ def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool
         "distanceTraveled": distanceSoFar
     }
 
-class Bipedal(Problem):
-
-    def __init__(self) -> None:
-        super(Bipedal, self).__init__(4, 2)
-        self.types = Real(-1000, 1000)
 
 
 if __name__ == '__main__':
@@ -160,12 +155,7 @@ if __name__ == '__main__':
     # milestone: float = 1.0
     # nrOfSteps: int  = 600
 
-    vis = Visualize()
-
-
-    problem = Problem(4, 2)
-    problem.types[:] = Real(-1000, 1000)
-    problem.function = testOrganism
+    # vis = Visualize()
 
     while True:
         rewards: List[float] = []
@@ -179,8 +169,8 @@ if __name__ == '__main__':
 
             render = phenotype.ID == IDToRender
 
-            if render:
-                vis.update(phenotype)
+            # if render:
+                # vis.update(phenotype)
 
             output = testOrganism(env, phenotype, novelty_map, render)
 

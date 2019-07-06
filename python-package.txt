@@ -1,7 +1,1 @@
-numpy
-scipy
-scikit-learn
-box2d
-box2d-kengz
-matplotlib
-gym
+numpy scipy scikit-learn box2d box2d-kengz matplotlib gym prettytable networkx rpyc plotly dash
