@@ -13,6 +13,7 @@ import math
 
 import os
 import sys
+import dill
 import _pickle as pickle
 import argparse
 
@@ -252,15 +253,15 @@ if __name__ == '__main__':
 
         neat.epoch(rewards)
 
-        # Save current generation
-        saveFileName = saveFolder + "." + str(neat.generation)
-        with open(saveDirectory + "/" + saveFileName, 'wb') as binaryFile:
-            pickle.dump([neat, innovations, novelty_map], binaryFile)
+        # # Save current generation
+        # saveFileName = saveFolder + "." + str(neat.generation)
+        # with open(saveDirectory + "/" + saveFileName, 'wb') as binaryFile:
+        #     pickle.dump([neat, innovations, novelty_map], binaryFile)
 
-        # Append to summary file
-        with open(saveDirectory + "/summary.txt", 'a') as textFile:
-            textFile.write("Generation " + str(neat.generation) + "\n")
-            textFile.write(table.get_string())
-            textFile.write("\n\n")
+        # # Append to summary file
+        # with open(saveDirectory + "/summary.txt", 'a') as textFile:
+        #     textFile.write("Generation " + str(neat.generation) + "\n")
+        #     textFile.write(table.get_string())
+        #     textFile.write("\n\n")
 
     env.close()
