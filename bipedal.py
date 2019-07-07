@@ -1,9 +1,9 @@
 from typing import List, Set, Dict, Tuple, Optional, Any
 
 from neat.neat import NEAT
-from neat.genes import innovations
+from neat.genes import innovations, Genome
 from neat.phenotypes import CNeuralNet
-from neat.defaultPopulation import DefaultPopulation
+from neat.mapelites import MapElitesConfiguration, Feature
 
 from visualize import Visualize
 
@@ -42,7 +42,7 @@ def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool
     distanceSoFar: float = 0.0
     
     actionsDone = np.zeros(8)
-    behavior = np.zeros(14)
+    behavior = np.zeros(3)
 
     sparseness: float = 0
     nrOfSteps: int = 0
@@ -73,7 +73,7 @@ def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool
 
         observation, reward, done, info = env.step(action)
         
-        behavior += observation[:14]
+        behavior += [observation[0], observation[2], observation[3]]
         
         if (render):
             env.render()
@@ -104,7 +104,7 @@ def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool
 
     return {
         # "behavior": [actionsDone],
-        "behavior": [behavior],
+        "behavior": behavior,
         "speed": totalSpeed,
         "nrOfSteps": nrOfSteps,
         "distanceTraveled": distanceSoFar
@@ -142,7 +142,18 @@ if __name__ == '__main__':
             # neat.milestone = 157.0
     else:
         print("Creating NEAT object")
-        neat = NEAT(500, inputs, outputs, fullyConnected = False)
+        popConfig = MapElitesConfiguration(256, [
+                Feature("hull_angularVelocity", 0, 2*math.pi), 
+                Feature("vel_x", -1.0, 1.0),
+                Feature("vel_y", -1.0, 1.0)
+            ])
+        
+            # "hip_joint_1_angle", "hip_joint_1_speed", 
+            # "knee_joint_1_angle", "knee_joint_1_speed", 
+            # "leg_1_ground_contact_flag", "hip_joint_2_angle", 
+            # "hip_joint_2_speed", "knee_joint_2_angle", 
+            # "knee_joint_2_speed", "leg_2_ground_contact_flag"])
+        neat = NEAT(500, inputs, outputs, popConfig, fullyConnected = False)
         novelty_map = np.empty((0, 14), float)
 
     # neat = None
@@ -159,100 +170,125 @@ if __name__ == '__main__':
 
     # vis = Visualize()
 
+    highestFitness: float = 0.0
     while True:
-        rewards: List[float] = []
-        novelties: List[float] = []
-        milestones: List[float] = []
-
-        IDToRender = deepcopy(highestReward[1])
-        highestReward = [-1000.0, 0]
+        candidate: Genome = neat.getCandidate()
+        output = testOrganism(env, candidate.createPhenotype(), novelty_map, False)
         
-        for i, phenotype in enumerate(neat.phenotypes):
-
-            render = phenotype.ID == IDToRender
-
-            # if render:
-                # vis.update(phenotype)
-
-            output = testOrganism(env, phenotype, novelty_map, render)
-
-            distanceTraveled = output["distanceTraveled"]
-            speed = output["speed"]/output["nrOfSteps"]
-                # output = np.round(np.divide(output, nrOfSteps), decimals=4)
-
-            sparseness = 0.0
-            if novelty_map.size > 0:
-                kdtree = sp.spatial.cKDTree(novelty_map)
-
-                neighbours = kdtree.query(output["behavior"], k)[0]
-                neighbours = neighbours[neighbours < 1E308]
-
-                sparseness = (1/k)*np.sum(neighbours)
+        fitness = output["distanceTraveled"]
 
 
-            if (novelty_map.size < k or sparseness > p_threshold):
-                novelty_map = np.append(novelty_map, output["behavior"], axis=0)
-
-            # np.sqrt(np.power(output["nrOfSteps"]*2, 2)*dimensions)
-            # totalReward = output["distanceTraveled"] + output["distanceTraveled"]*(sparseness/output["nrOfSteps"])
-            
-            totalReward = sparseness + sparseness*(speed/neat.milestone)
-            # totalReward = sparseness
-
-            if (speed > neat.milestone):
-                neat.milestone = speed
-
-            if (totalReward > highestReward[0]):
-                print("")
-                print("Milestone: " + str(np.round(neat.milestone, 2)) + 
-                    " | Distance Traveled: " + str(np.round(distanceTraveled, 2)) + 
-                    " | Speed: " + str(np.round(speed, 2)) + 
-                    " | Sparseness: " + str(np.round(sparseness, 2)) + 
-                    # " | Actions done: " +str(np.round(output["actionsDone"], 2)) +
-                    " | Total reward: " + str(np.round(totalReward, 2))
-                )
-                highestReward = [totalReward, phenotype.ID]
-
-            rewards.append(totalReward)
-            novelties.append(sparseness)
-            milestones.append(output["distanceTraveled"])
-
-            print("\rFinished phenotype ("+ str(i) +"/"+ str(len(neat.phenotypes)) +")", end='')
-
-        print("\n")
-        print("-----------------------------------------------------")
-        # print(rewards)
-        print("Running epoch")
-        print("Generation: " + str(neat.generation))
-        print("Number of species: " + str(len(neat.population.species)))
-        print("Phase: " + str(neat.phase))
-        print("Novelty map: " + str(novelty_map.data.shape))
-        # print("Milestones: " + str(milestones))
-        table = PrettyTable(["ID", "age", "members", "min. milestone", "max milestone", "max fitness", "adj. fitness", "max distance", "stag", "neurons", "links", "avg.weight", "avg. bias", "avg. compat.", "to spawn"])
-        for s in neat.population.species:
-            table.add_row([
-                s.ID,                                                       # Species ID
-                s.age,                                                      # Age
-                len(s.members),                                             # Nr. of members
-                s.milestone,
-                round(max([m.milestone for m in s.members]), 4),                   # Max milestone
-                round(max([m.fitness for m in s.members]), 4),                   # Max novelty
-                round(max([m.adjustedFitness for m in s.members]), 4),                   # Max fitness
-                "{:1.4f}".format(max([m.distance for m in s.members])),          # Average distance
-                s.generationsWithoutImprovement,                            # Stagnation
-                "{:1.4f}".format(np.mean([len(m.neurons)-28 for m in s.members])),     # Neurons
-                "{:1.4f}".format(np.mean([len(m.links) for m in s.members])),                 # Links
-                "{:1.4f}".format(np.mean([l.weight for m in s.members for l in m.links])),    # Avg. weight
-                "{:1.4f}".format(np.mean([n.bias for m in s.members for n in m.neurons])),    # Avg. bias
-                "{:1.4f}".format(np.mean([m.calculateCompatibilityDistance(s.leader) for m in s.members])),    # Avg. compatiblity
-                s.numToSpawn])                                              # Nr. of members to spawn
-
+        table = PrettyTable(["ID", "fitness", "neurons", "links", "avg.weight", "avg. bias"])
+        table.add_row([
+            candidate.ID,
+            "{:1.4f}".format(fitness),
+            len(candidate.neurons),
+            len(candidate.links),
+            "{:1.4f}".format(np.mean([l.weight for l in candidate.links])),
+            "{:1.4f}".format(np.mean([n.bias for n in candidate.neurons]))])
         print(table)
+        
+        if fitness > highestFitness:
+            print("New highest fitness: %f"%(fitness))
+            output = testOrganism(env, candidate.createPhenotype(), novelty_map, True)
+            highestFitness = fitness
 
-        for index, genome in enumerate(neat.population.genomes):
-            genome.milestone = milestones[index]
+        neat.updateCandidate(candidate, fitness, output["behavior"])
 
-        neat.epoch(rewards)
+    # while True:
+    #     rewards: List[float] = []
+    #     novelties: List[float] = []
+    #     milestones: List[float] = []
+
+    #     IDToRender = deepcopy(highestReward[1])
+    #     highestReward = [-1000.0, 0]
+        
+        # for i, phenotype in enumerate(neat.phenotypes):
+
+        #     render = phenotype.ID == IDToRender
+
+        #     # if render:
+        #         # vis.update(phenotype)
+
+        #     output = testOrganism(env, phenotype, novelty_map, render)
+
+        #     distanceTraveled = output["distanceTraveled"]
+        #     speed = output["speed"]/output["nrOfSteps"]
+        #         # output = np.round(np.divide(output, nrOfSteps), decimals=4)
+
+        #     sparseness = 0.0
+        #     if novelty_map.size > 0:
+        #         kdtree = sp.spatial.cKDTree(novelty_map)
+
+        #         neighbours = kdtree.query(output["behavior"], k)[0]
+        #         neighbours = neighbours[neighbours < 1E308]
+
+        #         sparseness = (1/k)*np.sum(neighbours)
+
+
+        #     if (novelty_map.size < k or sparseness > p_threshold):
+        #         novelty_map = np.append(novelty_map, output["behavior"], axis=0)
+
+        #     # np.sqrt(np.power(output["nrOfSteps"]*2, 2)*dimensions)
+        #     # totalReward = output["distanceTraveled"] + output["distanceTraveled"]*(sparseness/output["nrOfSteps"])
+            
+        #     totalReward = sparseness + sparseness*(speed/neat.milestone)
+        #     # totalReward = sparseness
+
+        #     if (speed > neat.milestone):
+        #         neat.milestone = speed
+
+        #     if (totalReward > highestReward[0]):
+        #         print("")
+        #         print("Milestone: " + str(np.round(neat.milestone, 2)) + 
+        #             " | Distance Traveled: " + str(np.round(distanceTraveled, 2)) + 
+        #             " | Speed: " + str(np.round(speed, 2)) + 
+        #             " | Sparseness: " + str(np.round(sparseness, 2)) + 
+        #             # " | Actions done: " +str(np.round(output["actionsDone"], 2)) +
+        #             " | Total reward: " + str(np.round(totalReward, 2))
+        #         )
+        #         highestReward = [totalReward, phenotype.ID]
+
+        #     rewards.append(totalReward)
+        #     novelties.append(sparseness)
+        #     milestones.append(output["distanceTraveled"])
+
+        #     print("\rFinished phenotype ("+ str(i) +"/"+ str(len(neat.phenotypes)) +")", end='')
+
+        # print("\n")
+        # print("-----------------------------------------------------")
+        # # print(rewards)
+        # print("Running epoch")
+        # print("Generation: " + str(neat.generation))
+        # print("Number of species: " + str(len(neat.population.species)))
+        # print("Phase: " + str(neat.phase))
+        # print("Novelty map: " + str(novelty_map.data.shape))
+        # # print("Milestones: " + str(milestones))
+        # table = PrettyTable(["ID", "age", "members", "min. milestone", "max milestone", "max fitness", "adj. fitness", "max distance", "stag", "neurons", "links", "avg.weight", "avg. bias", "avg. compat.", "to spawn"])
+        # for s in neat.population.species:
+        #     table.add_row([
+        #         s.ID,                                                       # Species ID
+        #         s.age,                                                      # Age
+        #         len(s.members),                                             # Nr. of members
+        #         s.milestone,
+        #         round(max([m.milestone for m in s.members]), 4),                   # Max milestone
+        #         round(max([m.fitness for m in s.members]), 4),                   # Max novelty
+        #         round(max([m.adjustedFitness for m in s.members]), 4),                   # Max fitness
+        #         "{:1.4f}".format(max([m.distance for m in s.members])),          # Average distance
+        #         s.generationsWithoutImprovement,                            # Stagnation
+        #         "{:1.4f}".format(np.mean([len(m.neurons)-28 for m in s.members])),     # Neurons
+        #         "{:1.4f}".format(np.mean([len(m.links) for m in s.members])),                 # Links
+        #         "{:1.4f}".format(np.mean([l.weight for m in s.members for l in m.links])),    # Avg. weight
+        #         "{:1.4f}".format(np.mean([n.bias for m in s.members for n in m.neurons])),    # Avg. bias
+        #         "{:1.4f}".format(np.mean([m.calculateCompatibilityDistance(s.leader) for m in s.members])),    # Avg. compatiblity
+        #         s.numToSpawn])                                              # Nr. of members to spawn
+
+        # print(table)
+
+        # for index, genome in enumerate(neat.population.genomes):
+        #     genome.milestone = milestones[index]
+
+        # neat.epoch(rewards)
 
         # # Save current generation
         # saveFileName = saveFolder + "." + str(neat.generation)
