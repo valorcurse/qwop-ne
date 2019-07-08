@@ -35,14 +35,14 @@ farthestDistance: float = np.sqrt(np.power((space_range*2), 2)*dimensions)
 # p_threshold: float = farthestDistance*0.03
 p_threshold: float = 5.0
 
-def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool) -> Dict[str, Any]:
+def testOrganism(env: Any, phenotype: CNeuralNet, render: bool) -> Dict[str, Any]:
     observation = env.reset()
     
     rewardSoFar: float = 0.0
     distanceSoFar: float = 0.0
     
     actionsDone = np.zeros(8)
-    behavior = np.zeros(3)
+    behavior = np.zeros(4)
 
     sparseness: float = 0
     nrOfSteps: int = 0
@@ -73,7 +73,17 @@ def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool
 
         observation, reward, done, info = env.step(action)
         
-        behavior += [observation[0], observation[2], observation[3]]
+        # behavior += observation[:14]
+        behavior += [
+            observation[0], 
+            observation[2], 
+            # observation[4],
+            # observation[6],
+            observation[8],
+            # observation[9],
+            # observation[11]
+            observation[13]
+        ]
         
         if (render):
             env.render()
@@ -91,23 +101,30 @@ def testOrganism(env: Any, phenotype: CNeuralNet, novelty_map: Any, render: bool
         else:
             rewardStagnation += 1
             
-
+        fitness = distanceSoFar
         if done or rewardStagnation >= 100:
-            # complete = True
+            if done:
+                fitness *= 0.5
+
             break
 
-        rewardSoFar += reward
+        rewardSoFar += round(reward, 1)
         previousDistance = distanceSoFar
         nrOfSteps += 1
 
     # actionsDone = np.divide(actionsDone, nrOfSteps)
+    behavior = np.divide(behavior, nrOfSteps)
+
+    # print(behavior)
 
     return {
         # "behavior": [actionsDone],
         "behavior": behavior,
-        "speed": totalSpeed,
-        "nrOfSteps": nrOfSteps,
-        "distanceTraveled": distanceSoFar
+        # "speed": totalSpeed,
+        # "nrOfSteps": nrOfSteps,
+        "distanceTraveled": distanceSoFar,
+        # "fitness": rewardSoFar
+        "fitness": fitness
     }
 
 
@@ -142,19 +159,30 @@ if __name__ == '__main__':
             # neat.milestone = 157.0
     else:
         print("Creating NEAT object")
-        popConfig = MapElitesConfiguration(256, [
-                Feature("hull_angularVelocity", 0, 2*math.pi), 
+        popConfig = MapElitesConfiguration(8, [
+                Feature("hull_angular", 0, 2*math.pi), 
+                # Feature("hull_angularVelocity", -1.0, 1.0), 
                 Feature("vel_x", -1.0, 1.0),
-                Feature("vel_y", -1.0, 1.0)
+                # Feature("vel_y", -1.0, 1.0),
+                # Feature("hip_joint_1_angle", -1.0, 1.0),
+                # Feature("hip_joint_1_speed", -1.0, 1.0),
+                # Feature("knee_joint_1_angle", -1.0, 1.0),
+                # Feature("knee_joint_1_speed", -1.0, 1.0),
+                Feature("leg_1_ground_contact_flag", 0.0, 1.0),
+                # Feature("hip_joint_2_angle", -1.0, 1.0),
+                # Feature("hip_joint_2_speed", -1.0, 1.0),
+                # Feature("knee_joint_2_angle", -1.0, 1.0),
+                # Feature("knee_joint_2_speed", -1.0, 1.0),
+                Feature("leg_2_ground_contact_flag", 0.0, 1.0)
             ])
-        
-            # "hip_joint_1_angle", "hip_joint_1_speed", 
-            # "knee_joint_1_angle", "knee_joint_1_speed", 
-            # "leg_1_ground_contact_flag", "hip_joint_2_angle", 
-            # "hip_joint_2_speed", "knee_joint_2_angle", 
-            # "knee_joint_2_speed", "leg_2_ground_contact_flag"])
         neat = NEAT(500, inputs, outputs, popConfig, fullyConnected = False)
-        novelty_map = np.empty((0, 14), float)
+        # novelty_map = np.empty((0, 14), float)
+
+    # randomPop = neat.population.randomInitialization()
+    # for i, genome in enumerate(randomPop):
+    #     print("\rInitializing start population ("+ str(i) +"/"+ str(len(randomPop)) +")", end='')
+    #     output = testOrganism(env, genome.createPhenotype(), novelty_map, False)
+    #     neat.updateCandidate(genome, output["distanceTraveled"], output["behavior"])
 
     # neat = None
     # print("Loading NEAT object from file")
@@ -163,37 +191,48 @@ if __name__ == '__main__':
         # neat, innovations, novelty_map = pickle.load(load)
 
     # General settings
-    IDToRender = None
-    highestReward = [-1000.0, 0]
+    # IDToRender = None
+    # highestReward = [-1000.0, 0]
     # milestone: float = 1.0
     # nrOfSteps: int  = 600
 
     # vis = Visualize()
 
     highestFitness: float = 0.0
+    highestDistance: float = 0.0
+
     while True:
         candidate: Genome = neat.getCandidate()
-        output = testOrganism(env, candidate.createPhenotype(), novelty_map, False)
+        output = testOrganism(env, candidate.createPhenotype(), False)
         
-        fitness = output["distanceTraveled"]
+        fitness = output["fitness"]
+        distance = output["distanceTraveled"]
 
+        if distance > highestDistance:
+            highestDistance = distance
 
-        table = PrettyTable(["ID", "fitness", "neurons", "links", "avg.weight", "avg. bias"])
-        table.add_row([
-            candidate.ID,
-            "{:1.4f}".format(fitness),
-            len(candidate.neurons),
-            len(candidate.links),
-            "{:1.4f}".format(np.mean([l.weight for l in candidate.links])),
-            "{:1.4f}".format(np.mean([n.bias for n in candidate.neurons]))])
-        print(table)
-        
-        if fitness > highestFitness:
+        if fitness > highestFitness and fitness > 15.0:
             print("New highest fitness: %f"%(fitness))
-            output = testOrganism(env, candidate.createPhenotype(), novelty_map, True)
+            output = testOrganism(env, candidate.createPhenotype(), True)
             highestFitness = fitness
 
-        neat.updateCandidate(candidate, fitness, output["behavior"])
+        updated: bool = neat.updateCandidate(candidate, fitness, output["behavior"])
+        if updated:
+            total = pow(neat.population.configuration.mapResolution, len(neat.population.configuration.features))
+            archiveFilled = len(neat.population.archivedGenomes)/total
+
+            table = PrettyTable(["ID", "fitness", "max fitness", "distance", "max distance", "neurons", "links", "avg.weight", "archive"])
+            table.add_row([
+                candidate.ID,
+                "{:1.4f}".format(fitness),
+                "{:1.4f}".format(highestFitness),
+                "{:1.4f}".format(distance),
+                "{:1.4f}".format(highestDistance),
+                len(candidate.neurons),
+                len(candidate.links),
+                "{:1.4f}".format(np.mean([l.weight for l in candidate.links])),
+                "{:1.8f}".format(archiveFilled)])
+            print(table)
 
     # while True:
     #     rewards: List[float] = []
