@@ -7,6 +7,8 @@ from neat.mapelites import MapElitesConfiguration, Feature
 
 from visualize import Visualize
 
+from multiprocessing.dummy import Pool as ThreadPool 
+
 from prettytable import PrettyTable
 import numpy as np
 import scipy as sp
@@ -35,7 +37,8 @@ farthestDistance: float = np.sqrt(np.power((space_range*2), 2)*dimensions)
 # p_threshold: float = farthestDistance*0.03
 p_threshold: float = 5.0
 
-def testOrganism(env: Any, phenotype: CNeuralNet, render: bool) -> Dict[str, Any]:
+def testOrganism(phenotype: CNeuralNet, displayEnv: Any = None) -> Dict[str, Any]:
+    env = displayEnv if displayEnv is not None else gym.make('BipedalWalker-v2')
     observation = env.reset()
     
     rewardSoFar: float = 0.0
@@ -85,7 +88,7 @@ def testOrganism(env: Any, phenotype: CNeuralNet, render: bool) -> Dict[str, Any
             observation[13]
         ]
         
-        if (render):
+        if (displayEnv is not None):
             env.render()
             # print(action)
         
@@ -149,6 +152,10 @@ if __name__ == '__main__':
     inputs = env.observation_space.shape[0]
     outputs = env.action_space.shape[0]
 
+    # substrateLayout: List[List[int]] = [
+    #     "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9", "i0", "i11", "i12", "i13", "i14",
+    # ]
+
     neat = None
     novelty_map = None
     if (args.load):
@@ -175,48 +182,54 @@ if __name__ == '__main__':
                 # Feature("knee_joint_2_speed", -1.0, 1.0),
                 Feature("leg_2_ground_contact_flag", 0.0, 1.0)
             ])
-        neat = NEAT(500, inputs, outputs, popConfig, fullyConnected = False)
+        neat = NEAT(500, inputs, outputs, popConfig)
         # novelty_map = np.empty((0, 14), float)
 
-    # randomPop = neat.population.randomInitialization()
+    randomPop = neat.population.randomInitialization()
     # for i, genome in enumerate(randomPop):
     #     print("\rInitializing start population ("+ str(i) +"/"+ str(len(randomPop)) +")", end='')
-    #     output = testOrganism(env, genome.createPhenotype(), novelty_map, False)
-    #     neat.updateCandidate(genome, output["distanceTraveled"], output["behavior"])
+    #     output = testOrganism(genome.createPhenotype())
+    #     neat.updateCandidate(genome, output["fitness"], output["behavior"])
 
-    # neat = None
-    # print("Loading NEAT object from file")
-    # with open("saves/lotsofspecies.ne", "rb") as load:
-    # with open("saves/bipedal/bipedal.178", "rb") as load:
-        # neat, innovations, novelty_map = pickle.load(load)
-
-    # General settings
-    # IDToRender = None
-    # highestReward = [-1000.0, 0]
-    # milestone: float = 1.0
-    # nrOfSteps: int  = 600
-
-    # vis = Visualize()
+    displayEnv = gym.make('BipedalWalker-v2')
+    displayEnv.render()
+    pool = ThreadPool(4) 
 
     highestFitness: float = 0.0
     highestDistance: float = 0.0
 
     while True:
         candidate: Genome = neat.getCandidate()
-        output = testOrganism(env, candidate.createPhenotype(), False)
         
-        fitness = output["fitness"]
-        distance = output["distanceTraveled"]
+        fitness = 0.0
+        distance = 0.0
+        behavior = np.zeros(4)
+        runs = 5
+        
+        output = pool.map(testOrganism, [candidate.createPhenotype()]*5)
+        fitness = max([l["fitness"] for l in output])
+        distance = max([l["distanceTraveled"] for l in output])
+        behavior = np.array([l["behavior"] for l in output])
+        behavior = np.add.reduce(behavior)/runs
+        # for _ in range(runs):
+        #     output = testOrganism(candidate.createPhenotype())
+        
+        #     fitness = max(fitness, output["fitness"])
+        #     distance = max(distance, output["distanceTraveled"])
+        #     behavior += output["behavior"]
+
+
+        # behavior /= runs
 
         if distance > highestDistance:
             highestDistance = distance
 
         if fitness > highestFitness and fitness > 15.0:
             print("New highest fitness: %f"%(fitness))
-            output = testOrganism(env, candidate.createPhenotype(), True)
+            testOrganism(candidate.createPhenotype(), displayEnv)
             highestFitness = fitness
 
-        updated: bool = neat.updateCandidate(candidate, fitness, output["behavior"])
+        updated: bool = neat.updateCandidate(candidate, fitness, behavior)
         if updated:
             total = pow(neat.population.configuration.mapResolution, len(neat.population.configuration.features))
             archiveFilled = len(neat.population.archivedGenomes)/total
