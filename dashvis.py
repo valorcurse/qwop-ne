@@ -9,7 +9,7 @@ import rpyc
 from rpyc.utils.server import ThreadedServer
 import multiprocessing
 from multiprocessing import Process, Queue
-import multiprocess.managers as managers
+import multiprocessing.managers as managers
 
 import json
 from plotly.utils import PlotlyJSONEncoder

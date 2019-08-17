@@ -54,9 +54,10 @@ def testOrganism(phenotype: CNeuralNet, displayEnv: Any = None) -> Dict[str, Any
     previousDistance: float = 0.0
     rewardStagnation: int = 0 
 
-    # if (render):
+
+    # if (displayEnv):
         # phenotype.draw()
-        # Visualize(phenotype).draw()
+        # Visualize().update(phenotype)
 
     # while not complete:
     for _ in range(max_frames):
@@ -185,7 +186,7 @@ if __name__ == '__main__':
         neat = NEAT(500, inputs, outputs, popConfig)
         # novelty_map = np.empty((0, 14), float)
 
-    randomPop = neat.population.randomInitialization()
+    # randomPop = neat.population.randomInitialization()
     # for i, genome in enumerate(randomPop):
     #     print("\rInitializing start population ("+ str(i) +"/"+ str(len(randomPop)) +")", end='')
     #     output = testOrganism(genome.createPhenotype())
@@ -199,7 +200,7 @@ if __name__ == '__main__':
     highestDistance: float = 0.0
 
     while True:
-        candidate: Genome = neat.getCandidate()
+        cppn, candidate = neat.getCandidate()
         
         fitness = 0.0
         distance = 0.0
@@ -224,26 +225,27 @@ if __name__ == '__main__':
         if distance > highestDistance:
             highestDistance = distance
 
-        if fitness > highestFitness and fitness > 15.0:
+        if fitness > highestFitness:
             print("New highest fitness: %f"%(fitness))
+            Visualize().update(cppn.createPhenotype())
             testOrganism(candidate.createPhenotype(), displayEnv)
             highestFitness = fitness
 
-        updated: bool = neat.updateCandidate(candidate, fitness, behavior)
+        updated: bool = neat.updateCandidate(cppn, fitness, behavior)
         if updated:
             total = pow(neat.population.configuration.mapResolution, len(neat.population.configuration.features))
             archiveFilled = len(neat.population.archivedGenomes)/total
 
             table = PrettyTable(["ID", "fitness", "max fitness", "distance", "max distance", "neurons", "links", "avg.weight", "archive"])
             table.add_row([
-                candidate.ID,
+                cppn.ID,
                 "{:1.4f}".format(fitness),
                 "{:1.4f}".format(highestFitness),
                 "{:1.4f}".format(distance),
                 "{:1.4f}".format(highestDistance),
-                len(candidate.neurons),
-                len(candidate.links),
-                "{:1.4f}".format(np.mean([l.weight for l in candidate.links])),
+                len(cppn.neurons),
+                len(cppn.links),
+                "{:1.4f}".format(np.mean([l.weight for l in cppn.links])),
                 "{:1.8f}".format(archiveFilled)])
             print(table)
 
