@@ -21,13 +21,13 @@ class Visualize():
 
 		edges = {"x": [], "y": []}
 		for edge in [e for n in self.neuralNetwork.neurons for e in n.linksIn]:
-			edges['x'].append(tuple([int(edge.fromNeuron.posX + 1.0), int(edge.toNeuron.posX + 1.0), None]))
-			edges['y'].append(tuple([int(edge.fromNeuron.posY + 1.0), int(edge.toNeuron.posY + 1.0), None]))
+			edges['x'].append(tuple([int(edge.fromNeuron.x), int(edge.toNeuron.x), None]))
+			edges['y'].append(tuple([int(edge.fromNeuron.y), int(edge.toNeuron.y), None]))
 
 		neurons = {"x": [], "y": []}
 		for neuron in self.neuralNetwork.neurons:
-			neurons['x'].append(int(neuron.posX + 1.0))
-			neurons['y'].append(int(neuron.posY + 1.0))
+			neurons['x'].append(int(neuron.x))
+			neurons['y'].append(int(neuron.y))
 
 		print(neurons)
 
