@@ -21,15 +21,15 @@ class Visualize():
 
 		edges = {"x": [], "y": []}
 		for edge in [e for n in self.neuralNetwork.neurons for e in n.linksIn]:
-			edges['x'].append(tuple([int(edge.fromNeuron.x), int(edge.toNeuron.x), None]))
-			edges['y'].append(tuple([int(edge.fromNeuron.y), int(edge.toNeuron.y), None]))
-
+			edges['x'].append(tuple([edge.fromNeuron.x, edge.toNeuron.x, None]))
+			edges['y'].append(tuple([edge.fromNeuron.y, edge.toNeuron.y, None]))
+		
+		# print(edges)
+		
 		neurons = {"x": [], "y": []}
 		for neuron in self.neuralNetwork.neurons:
-			neurons['x'].append(int(neuron.x))
-			neurons['y'].append(int(neuron.y))
-
-		print(neurons)
+			neurons['x'].append(neuron.x)
+			neurons['y'].append(neuron.y)
 
 		dataToSend = json.dumps([neurons, edges])
 		self.queue.root.send_message(dataToSend)

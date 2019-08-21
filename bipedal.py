@@ -1,8 +1,8 @@
 from typing import List, Set, Dict, Tuple, Optional, Any
 
-from neat.neat import NEAT
-from neat.genes import innovations, Genome
-from neat.phenotypes import CNeuralNet
+from neat.hyperneat import HyperNEAT
+from neat.genes import Genome
+from neat.phenotypes import Phenotype
 from neat.mapelites import MapElitesConfiguration, Feature
 
 from visualize import Visualize
@@ -37,7 +37,7 @@ farthestDistance: float = np.sqrt(np.power((space_range*2), 2)*dimensions)
 # p_threshold: float = farthestDistance*0.03
 p_threshold: float = 5.0
 
-def testOrganism(phenotype: CNeuralNet, displayEnv: Any = None) -> Dict[str, Any]:
+def testOrganism(phenotype: Phenotype, displayEnv: Any = None) -> Dict[str, Any]:
     env = displayEnv if displayEnv is not None else gym.make('BipedalWalker-v2')
     observation = env.reset()
     
@@ -74,7 +74,11 @@ def testOrganism(phenotype: CNeuralNet, displayEnv: Any = None) -> Dict[str, Any
         # splitActions = [abs(number) for number in splitActions]
 
         # actionsDone += np.array(np.absolute(splitActions))
-
+        # links = [n.linksIn for n in phenotype.neurons]
+        # links = [item for sublist in links for item in sublist]
+        # if len(links) > 0:
+        #     print("\r" + str(action) + " " + str(len(links)), end='')
+        
         observation, reward, done, info = env.step(action)
         
         # behavior += observation[:14]
@@ -157,16 +161,16 @@ if __name__ == '__main__':
     #     "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9", "i0", "i11", "i12", "i13", "i14",
     # ]
 
-    neat = None
+    hyperneat = None
     novelty_map = None
     if (args.load):
-        print("Loading NEAT object from file")
+        print("Loading hyperneat object from file")
         with open("saves/" + args.load, "rb") as load:
-            neat, innovations, novelty_map = pickle.load(load)
-            neat.populationSize = 150
-            # neat.milestone = 157.0
+            hyperneat, novelty_map = pickle.load(load)
+            hyperneat.populationSize = 150
+            # hyperneat.milestone = 157.0
     else:
-        print("Creating NEAT object")
+        print("Creating hyperneat object")
         popConfig = MapElitesConfiguration(8, [
                 Feature("hull_angular", 0, 2*math.pi), 
                 # Feature("hull_angularVelocity", -1.0, 1.0), 
@@ -183,14 +187,14 @@ if __name__ == '__main__':
                 # Feature("knee_joint_2_speed", -1.0, 1.0),
                 Feature("leg_2_ground_contact_flag", 0.0, 1.0)
             ])
-        neat = NEAT(500, inputs, outputs, popConfig)
+        hyperneat = HyperNEAT(500, inputs, outputs, popConfig)
         # novelty_map = np.empty((0, 14), float)
 
-    # randomPop = neat.population.randomInitialization()
-    # for i, genome in enumerate(randomPop):
-    #     print("\rInitializing start population ("+ str(i) +"/"+ str(len(randomPop)) +")", end='')
-    #     output = testOrganism(genome.createPhenotype())
-    #     neat.updateCandidate(genome, output["fitness"], output["behavior"])
+    randomPop = hyperneat.neat.population.randomInitialization()
+    for i, genome in enumerate(randomPop):
+        print("\rInitializing start population ("+ str(i) +"/"+ str(len(randomPop)) +")", end='')
+        output = testOrganism(hyperneat.createSubstrate(genome).createPhenotype())
+        hyperneat.epoch(genome, output["fitness"], output["behavior"])
 
     displayEnv = gym.make('BipedalWalker-v2')
     displayEnv.render()
@@ -200,26 +204,29 @@ if __name__ == '__main__':
     highestDistance: float = 0.0
 
     while True:
-        cppn, candidate = neat.getCandidate()
+        cppn = hyperneat.getCandidate()
         
         fitness = 0.0
         distance = 0.0
         behavior = np.zeros(4)
         runs = 5
-        
+        candidate = hyperneat.createSubstrate(cppn)
         output = pool.map(testOrganism, [candidate.createPhenotype()]*5)
         fitness = max([l["fitness"] for l in output])
         distance = max([l["distanceTraveled"] for l in output])
         behavior = np.array([l["behavior"] for l in output])
         behavior = np.add.reduce(behavior)/runs
         # for _ in range(runs):
-        #     output = testOrganism(candidate.createPhenotype())
+        #     phenotype = hyperneat.createSubstrate(cppn).createPhenotype()
+        #     Visualize().update(phenotype)
+        #     output = testOrganism(phenotype, displayEnv)
         
         #     fitness = max(fitness, output["fitness"])
         #     distance = max(distance, output["distanceTraveled"])
         #     behavior += output["behavior"]
 
-
+        # Visualize().update(candidate.createPhenotype())
+        # testOrganism(candidate.createPhenotype(), displayEnv)
         # behavior /= runs
 
         if distance > highestDistance:
@@ -227,14 +234,16 @@ if __name__ == '__main__':
 
         if fitness > highestFitness:
             print("New highest fitness: %f"%(fitness))
-            Visualize().update(cppn.createPhenotype())
-            testOrganism(candidate.createPhenotype(), displayEnv)
+            phenotype = hyperneat.createSubstrate(cppn).createPhenotype()
+            # Visualize().update(cppn.createPhenotype())
+            Visualize().update(phenotype)
+            testOrganism(phenotype, displayEnv)
             highestFitness = fitness
 
-        updated: bool = neat.updateCandidate(cppn, fitness, behavior)
+        updated: bool = hyperneat.updateCandidate(cppn, fitness, behavior)
         if updated:
-            total = pow(neat.population.configuration.mapResolution, len(neat.population.configuration.features))
-            archiveFilled = len(neat.population.archivedGenomes)/total
+            total = pow(hyperneat.neat.population.configuration.mapResolution, len(hyperneat.neat.population.configuration.features))
+            archiveFilled = len(hyperneat.neat.population.archivedGenomes)/total
 
             table = PrettyTable(["ID", "fitness", "max fitness", "distance", "max distance", "neurons", "links", "avg.weight", "archive"])
             table.add_row([
@@ -257,7 +266,7 @@ if __name__ == '__main__':
     #     IDToRender = deepcopy(highestReward[1])
     #     highestReward = [-1000.0, 0]
         
-        # for i, phenotype in enumerate(neat.phenotypes):
+        # for i, phenotype in enumerate(hyperneat.phenotypes):
 
         #     render = phenotype.ID == IDToRender
 
@@ -286,15 +295,15 @@ if __name__ == '__main__':
         #     # np.sqrt(np.power(output["nrOfSteps"]*2, 2)*dimensions)
         #     # totalReward = output["distanceTraveled"] + output["distanceTraveled"]*(sparseness/output["nrOfSteps"])
             
-        #     totalReward = sparseness + sparseness*(speed/neat.milestone)
+        #     totalReward = sparseness + sparseness*(speed/hyperneat.milestone)
         #     # totalReward = sparseness
 
-        #     if (speed > neat.milestone):
-        #         neat.milestone = speed
+        #     if (speed > hyperneat.milestone):
+        #         hyperneat.milestone = speed
 
         #     if (totalReward > highestReward[0]):
         #         print("")
-        #         print("Milestone: " + str(np.round(neat.milestone, 2)) + 
+        #         print("Milestone: " + str(np.round(hyperneat.milestone, 2)) + 
         #             " | Distance Traveled: " + str(np.round(distanceTraveled, 2)) + 
         #             " | Speed: " + str(np.round(speed, 2)) + 
         #             " | Sparseness: " + str(np.round(sparseness, 2)) + 
@@ -307,19 +316,19 @@ if __name__ == '__main__':
         #     novelties.append(sparseness)
         #     milestones.append(output["distanceTraveled"])
 
-        #     print("\rFinished phenotype ("+ str(i) +"/"+ str(len(neat.phenotypes)) +")", end='')
+        #     print("\rFinished phenotype ("+ str(i) +"/"+ str(len(hyperneat.phenotypes)) +")", end='')
 
         # print("\n")
         # print("-----------------------------------------------------")
         # # print(rewards)
         # print("Running epoch")
-        # print("Generation: " + str(neat.generation))
-        # print("Number of species: " + str(len(neat.population.species)))
-        # print("Phase: " + str(neat.phase))
+        # print("Generation: " + str(hyperneat.generation))
+        # print("Number of species: " + str(len(hyperneat.population.species)))
+        # print("Phase: " + str(hyperneat.phase))
         # print("Novelty map: " + str(novelty_map.data.shape))
         # # print("Milestones: " + str(milestones))
         # table = PrettyTable(["ID", "age", "members", "min. milestone", "max milestone", "max fitness", "adj. fitness", "max distance", "stag", "neurons", "links", "avg.weight", "avg. bias", "avg. compat.", "to spawn"])
-        # for s in neat.population.species:
+        # for s in hyperneat.population.species:
         #     table.add_row([
         #         s.ID,                                                       # Species ID
         #         s.age,                                                      # Age
@@ -339,19 +348,19 @@ if __name__ == '__main__':
 
         # print(table)
 
-        # for index, genome in enumerate(neat.population.genomes):
+        # for index, genome in enumerate(hyperneat.population.genomes):
         #     genome.milestone = milestones[index]
 
-        # neat.epoch(rewards)
+        # hyperneat.epoch(rewards)
 
         # # Save current generation
-        # saveFileName = saveFolder + "." + str(neat.generation)
+        # saveFileName = saveFolder + "." + str(hyperneat.generation)
         # with open(saveDirectory + "/" + saveFileName, 'wb') as binaryFile:
-        #     pickle.dump([neat, innovations, novelty_map], binaryFile)
+        #     pickle.dump([hyperneat, innovations, novelty_map], binaryFile)
 
         # # Append to summary file
         # with open(saveDirectory + "/summary.txt", 'a') as textFile:
-        #     textFile.write("Generation " + str(neat.generation) + "\n")
+        #     textFile.write("Generation " + str(hyperneat.generation) + "\n")
         #     textFile.write(table.get_string())
         #     textFile.write("\n\n")
 
