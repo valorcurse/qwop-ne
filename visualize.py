@@ -9,14 +9,14 @@ import dash_core_components as dcc
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 
-from neat.phenotypes import CNeuralNet
+from neat.phenotypes import Phenotype
 
 class Visualize():
 
 	def __init__(self) -> None:
 		self.queue = rpyc.connect("localhost", 18811)
 
-	def update(self, neuralNetwork: CNeuralNet):
+	def update(self, neuralNetwork: Phenotype):
 		self.neuralNetwork = neuralNetwork
 
 		edges = {"x": [], "y": []}

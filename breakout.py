@@ -1,9 +1,9 @@
 from typing import List, Set, Dict, Tuple, Optional, Any
 
-from neat.hyperneat import HyperNEAT
+import neat.hyperneat as hn
 from neat.genes import Genome
-from neat.phenotypes import CNeuralNet
-from neat.mapelites import MapElitesConfiguration, Feature
+from neat.phenotypes import Phenotype
+from neat.speciatedPopulation import SpeciesConfiguration, SpeciesUpdate
 
 from visualize import Visualize
 
@@ -39,7 +39,7 @@ farthestDistance: float = np.sqrt(np.power((space_range*2), 2)*dimensions)
 # p_threshold: float = farthestDistance*0.03
 p_threshold: float = 5.0
 
-def testOrganism(phenotype: CNeuralNet, displayEnv: Any = None) -> Dict[str, Any]:
+def testOrganism(phenotype: Phenotype, displayEnv: Any = None) -> Dict[str, Any]:
     env = displayEnv if displayEnv is not None else gym.make(environment)
     observation = env.reset()
     
@@ -100,44 +100,18 @@ if __name__ == '__main__':
     inputs = env.observation_space.shape[0]
     outputs = env.action_space.n
 
-    # substrateLayout: List[List[int]] = [
-    #     "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9", "i0", "i11", "i12", "i13", "i14",
-    # ]
+    print("Creating hyperneat object")
+    pop_config = SpeciesConfiguration(300, inputs, outputs)
+    hyperneat = hn.HyperNEAT(pop_config)
 
-    hyperneat = None
-    novelty_map = None
-    if (args.load):
-        print("Loading hyperneat object from file")
-        with open("saves/" + args.load, "rb") as load:
-            hyperneat, novelty_map = pickle.load(load)
-            hyperneat.populationSize = 150
-            # hyperneat.milestone = 157.0
-    else:
-        print("Creating hyperneat object")
-        popConfig = MapElitesConfiguration(8, [
-                Feature("hull_angular", 0, 2*math.pi), 
-                # Feature("hull_angularVelocity", -1.0, 1.0), 
-                Feature("vel_x", -1.0, 1.0),
-                # Feature("vel_y", -1.0, 1.0),
-                # Feature("hip_joint_1_angle", -1.0, 1.0),
-                # Feature("hip_joint_1_speed", -1.0, 1.0),
-                # Feature("knee_joint_1_angle", -1.0, 1.0),
-                # Feature("knee_joint_1_speed", -1.0, 1.0),
-                Feature("leg_1_ground_contact_flag", 0.0, 1.0),
-                # Feature("hip_joint_2_angle", -1.0, 1.0),
-                # Feature("hip_joint_2_speed", -1.0, 1.0),
-                # Feature("knee_joint_2_angle", -1.0, 1.0),
-                # Feature("knee_joint_2_speed", -1.0, 1.0),
-                Feature("leg_2_ground_contact_flag", 0.0, 1.0)
-            ])
-        hyperneat = HyperNEAT(500, inputs, outputs, popConfig)
-        # novelty_map = np.empty((0, 14), float)
+    fitnesses: List[float] = []
+    phenotypes: List[Phenotype] = []
 
     # randomPop = hyperneat.neat.population.randomInitialization()
     # for i, genome in enumerate(randomPop):
     #     print("\rInitializing start population ("+ str(i) +"/"+ str(len(randomPop)) +")", end='')
-    #     output = testOrganism(hyperneat.createSubstrate(genome).createPhenotype())
-    #     hyperneat.neat.updateCandidate(genome, output["fitness"], output["behavior"])
+    #     fitnesses.append(testOrganism(hyperneat.createSubstrate(genome).createPhenotype())["fitness"])
+    # phenotypes = hyperneat.epoch(SpeciesUpdate(fitnesses))
 
     displayEnv = gym.make(environment)
     displayEnv.render()
@@ -147,13 +121,13 @@ if __name__ == '__main__':
     highestDistance: float = 0.0
 
     while True:
-        cppn = hyperneat.getCandidate()
         
         fitness = 0.0
         distance = 0.0
-        behavior = np.zeros(4)
+        # behavior = np.zeros(4)
+
         runs = 5
-        candidate = hyperneat.createSubstrate(cppn)
+        # candidate = hyperneat.createSubstrate(cppn)
         
         # Parallel
         # output = pool.map(testOrganism, [candidate.createPhenotype()]*5)
@@ -162,46 +136,40 @@ if __name__ == '__main__':
         # behavior = np.array([l["behavior"] for l in output])
         # behavior = np.add.reduce(behavior)/runs
         
-        for _ in range(runs):
-            phenotype = hyperneat.createSubstrate(cppn).createPhenotype()
+        for phenotype in phenotypes:
             Visualize().update(phenotype)
             output = testOrganism(phenotype, displayEnv)
         
             fitness = max(fitness, output["fitness"])
-            distance = max(distance, output["distanceTraveled"])
-            behavior += output["behavior"]
+            fitnesses.append(fitness)
 
-        # Visualize().update(candidate.createPhenotype())
-        # testOrganism(candidate.createPhenotype(), displayEnv)
-        # behavior /= runs
+            if fitness > highestFitness:
+                print("New highest fitness: %f"%(fitness))
+                # Visualize().update(cppn.createPhenotype())
+                Visualize().update(phenotype)
+                testOrganism(phenotype, displayEnv)
+                highestFitness = fitness
 
-        if distance > highestDistance:
-            highestDistance = distance
-
-        if fitness > highestFitness:
-            print("New highest fitness: %f"%(fitness))
-            phenotype = hyperneat.createSubstrate(cppn).createPhenotype()
-            # Visualize().update(cppn.createPhenotype())
-            Visualize().update(phenotype)
-            testOrganism(phenotype, displayEnv)
-            highestFitness = fitness
-
-        updated: bool = hyperneat.updateCandidate(cppn, fitness, behavior)
-        if updated:
-            total = pow(hyperneat.neat.population.configuration.mapResolution, len(hyperneat.neat.population.configuration.features))
-            archiveFilled = len(hyperneat.neat.population.archivedGenomes)/total
-
-            table = PrettyTable(["ID", "fitness", "max fitness", "distance", "max distance", "neurons", "links", "avg.weight", "archive"])
+        table = PrettyTable(["ID", "age", "members", "max fitness", "adj. fitness", "avg. distance", "stag", "neurons", "links", "avg.weight", "avg. bias", "avg. compat.", "to spawn"])
+        for s in hyperneat.neat.population.species:
             table.add_row([
-                cppn.ID,
-                "{:1.4f}".format(fitness),
-                "{:1.4f}".format(highestFitness),
-                "{:1.4f}".format(distance),
-                "{:1.4f}".format(highestDistance),
-                len(cppn.neurons),
-                len(cppn.links),
-                "{:1.4f}".format(np.mean([l.weight for l in cppn.links])),
-                "{:1.8f}".format(archiveFilled)])
-            print(table)
+                s.ID,                                                       # Species ID
+                s.age,                                                      # Age
+                len(s.members),                                             # Nr. of members
+                int(max([m.fitness for m in s.members])),                   # Max fitness
+                "{:1.4f}".format(s.adjustedFitness),                        # Adjusted fitness
+                "{:1.4f}".format(max([m.distance for m in s.members])),          # Average distance
+                # "{}".format(max([m.uniqueKeysPressed for m in s.members])), # Average unique keys
+                s.generationsWithoutImprovement,                            # Stagnation
+                int(np.mean([len(m.neurons)-1894 for m in s.members])),     # Neurons
+                np.mean([len(m.links) for m in s.members]),                 # Links
+                "{:1.4f}".format(np.mean([l.weight for m in s.members for l in m.links])),    # Avg. weight
+                "{:1.4f}".format(np.mean([n.bias for m in s.members for n in m.neurons])),    # Avg. bias
+                "{:1.4f}".format(np.mean([m.calculateCompatibilityDistance(s.leader) for m in s.members])),    # Avg. compatiblity
+                s.numToSpawn])                                              # Nr. of members to spawn
+
+        print(table)
+
+        phenotypes = hyperneat.epoch(SpeciesUpdate(fitnesses))
 
     env.close()

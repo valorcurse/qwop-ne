@@ -157,21 +157,15 @@ if __name__ == '__main__':
     inputs = env.observation_space.shape[0]
     outputs = env.action_space.shape[0]
 
-    # substrateLayout: List[List[int]] = [
-    #     "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9", "i0", "i11", "i12", "i13", "i14",
-    # ]
-
     hyperneat = None
     novelty_map = None
     if (args.load):
         print("Loading hyperneat object from file")
         with open("saves/" + args.load, "rb") as load:
             hyperneat, novelty_map = pickle.load(load)
-            hyperneat.populationSize = 150
-            # hyperneat.milestone = 157.0
     else:
         print("Creating hyperneat object")
-        popConfig = MapElitesConfiguration(8, [
+        pop_config = MapElitesConfiguration(8, [
                 Feature("hull_angular", 0, 2*math.pi), 
                 # Feature("hull_angularVelocity", -1.0, 1.0), 
                 Feature("vel_x", -1.0, 1.0),
@@ -186,9 +180,10 @@ if __name__ == '__main__':
                 # Feature("knee_joint_2_angle", -1.0, 1.0),
                 # Feature("knee_joint_2_speed", -1.0, 1.0),
                 Feature("leg_2_ground_contact_flag", 0.0, 1.0)
-            ])
-        hyperneat = HyperNEAT(500, inputs, outputs, popConfig)
-        # novelty_map = np.empty((0, 14), float)
+            ],
+            inputs, outputs)
+        
+        hyperneat = HyperNEAT(pop_config)
 
     randomPop = hyperneat.neat.population.randomInitialization()
     for i, genome in enumerate(randomPop):
