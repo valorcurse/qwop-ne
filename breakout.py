@@ -42,9 +42,8 @@ p_threshold: float = 5.0
 def testOrganism(phenotype: Phenotype, displayEnv: Any = None) -> Dict[str, Any]:
     env = displayEnv if displayEnv is not None else gym.make(environment)
     observation = env.reset()
-    
+
     rewardSoFar: float = 0.0
-    distanceSoFar: float = 0.0
     
     actionsDone = np.zeros(8)
     behavior = np.zeros(4)
@@ -53,21 +52,37 @@ def testOrganism(phenotype: Phenotype, displayEnv: Any = None) -> Dict[str, Any]
     nrOfSteps: int = 0
     totalSpeed: float = 0
 
-    previousDistance: float = 0.0
+    previousReward: float = 0.0
     rewardStagnation: int = 0 
 
     done = False
     while not done:
 # 
-        action = phenotype.update(observation)
+        actions = phenotype.update(observation)
         
+        action = np.argmax(actions)
+
         state, reward, done, info = env.step(action)
         
+        print(reward)
+
         if (displayEnv is not None):
             env.render()
 
-        print(state.shape)        
-    
+        rewardSoFar += reward
+
+        rewardDiff: float = rewardSoFar-previousReward
+        previousReward = rewardSoFar
+        # print("\r", rewardStagnation, "\t", rewardDiff, end='')
+
+        if rewardDiff > 0.0:
+            rewardStagnation = 0
+        else:
+            rewardStagnation += 1
+            
+        if done or rewardStagnation >= 100:
+            break
+
     return {
     #     # "behavior": [actionsDone],
     #     "behavior": behavior,
@@ -98,15 +113,19 @@ if __name__ == '__main__':
     env = gym.make(environment)
 
     inputs = env.observation_space.shape[0]
-    outputs = env.action_space.n
+    # outputs = env.action_space[0]
+    outputs = 18
 
     print("Creating hyperneat object")
-    pop_config = SpeciesConfiguration(300, inputs, outputs)
+    pop_size = 300
+    print(inputs, outputs)
+    pop_config = SpeciesConfiguration(pop_size, inputs, outputs)
     hyperneat = hn.HyperNEAT(pop_config)
 
     fitnesses: List[float] = []
-    phenotypes: List[Phenotype] = []
-
+    start_fitness = [0.0]*pop_size
+    phenotypes: List[Phenotype] = hyperneat.epoch(SpeciesUpdate(start_fitness))
+    print(len(phenotypes))
     # randomPop = hyperneat.neat.population.randomInitialization()
     # for i, genome in enumerate(randomPop):
     #     print("\rInitializing start population ("+ str(i) +"/"+ str(len(randomPop)) +")", end='')
@@ -115,7 +134,7 @@ if __name__ == '__main__':
 
     displayEnv = gym.make(environment)
     displayEnv.render()
-    pool = ThreadPool(4) 
+    # pool = ThreadPool(4)
 
     highestFitness: float = 0.0
     highestDistance: float = 0.0
@@ -139,7 +158,7 @@ if __name__ == '__main__':
         for phenotype in phenotypes:
             Visualize().update(phenotype)
             output = testOrganism(phenotype, displayEnv)
-        
+            print(output)
             fitness = max(fitness, output["fitness"])
             fitnesses.append(fitness)
 
