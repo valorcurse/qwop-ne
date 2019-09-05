@@ -231,7 +231,7 @@ if __name__ == '__main__':
             print("New highest fitness: %f"%(fitness))
             phenotype = hyperneat.createSubstrate(cppn).createPhenotype()
             # Visualize().update(cppn.createPhenotype())
-            Visualize().update(phenotype)
+            # Visualize().update(phenotype)
             testOrganism(phenotype, displayEnv)
             highestFitness = fitness
 

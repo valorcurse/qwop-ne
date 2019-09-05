@@ -60,9 +60,9 @@ def update_graph_live(n, fig):
 		node_trace = go.Scatter(
 			x=data[0]['x'],
 			y=data[0]['y'],
-			text=[],
+			# text=[],
 			mode='markers',
-			hoverinfo='text',
+			# hoverinfo='text',
 			marker=dict(
 				showscale=True,
 				colorscale='YlGnBu',
@@ -110,9 +110,7 @@ def update_graph_live(n, fig):
 	return fig
 
 import datetime
-@app.callback(
-    Output('my-output-interval', 'children'),
-    [Input('my-interval', 'n_intervals')])
+@app.callback(Output('my-output-interval', 'children'), [Input('my-interval', 'n_intervals')])
 def display_output(n):
     now = datetime.datetime.now()
     return '{} intervals have passed. It is {}:{}:{}'.format(
