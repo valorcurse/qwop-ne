@@ -65,8 +65,8 @@ def testOrganism(phenotype: Phenotype, displayEnv: Any = None) -> Dict[str, Any]
 
     done = False
     while not done:
-
-        actions = phenotype.update(observation)
+        print(observation.shape)
+        actions = phenotype.update(observation.flatten())
         
         action = np.argmax(actions)
         state, reward, done, info = env.step(action)
@@ -89,12 +89,6 @@ def testOrganism(phenotype: Phenotype, displayEnv: Any = None) -> Dict[str, Any]
             break
 
     return {
-    #     # "behavior": [actionsDone],
-    #     "behavior": behavior,
-    #     # "speed": totalSpeed,
-    #     # "nrOfSteps": nrOfSteps,
-    #     "distanceTraveled": distanceSoFar,
-    #     # "fitness": rewardSoFar
         "fitness": fitness
     }
 
@@ -117,13 +111,13 @@ if __name__ == '__main__':
 
     env = gym.make(environment)
 
-    inputs = env.observation_space.shape[0]
+    inputs = env.observation_space.sample().size
     # outputs = env.action_space[0]
     outputs = 18
 
     print("Creating hyperneat object")
-    pop_size = 50
-    print(inputs, outputs)
+    pop_size = 1
+    print(env.observation_space.sample().shape, outputs)
     pop_config = SpeciesConfiguration(pop_size, inputs, outputs)
     hyperneat = hn.HyperNEAT(pop_config)
 
@@ -156,7 +150,7 @@ if __name__ == '__main__':
 
         for phenotype in phenotypes:
             print("Phenotype: %d | Neurons: %d | Links: %d"%
-                (phenotype.ID, len(phenotype.neurons), len([n.linksIn for n in phenotype.neurons]))
+                (phenotype.ID, len(phenotype.graph.nodes), len(phenotype.graph.edges))
                 )
             # Visualize().update(phenotype)
             output = testOrganism(phenotype, None)
