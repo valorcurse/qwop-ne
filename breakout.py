@@ -89,7 +89,7 @@ def testOrganism(phenotype: Phenotype, displayEnv: Any = None) -> Dict[str, Any]
             break
 
     return {
-        "fitness": fitness
+            "fitness": fitness
     }
 
 
