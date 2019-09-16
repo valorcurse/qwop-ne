@@ -25,6 +25,9 @@ from copy import deepcopy
 
 import gym
 
+def createGym():
+    return gym.make('BipedalWalker-v2')
+
 dimensions: int = 8
 k: int = 15
 max_frames: int = 1000
@@ -38,7 +41,7 @@ farthestDistance: float = np.sqrt(np.power((space_range*2), 2)*dimensions)
 p_threshold: float = 5.0
 
 def testOrganism(phenotype: Phenotype, displayEnv: Any = None) -> Dict[str, Any]:
-    env = displayEnv if displayEnv is not None else gym.make('BipedalWalker-v2')
+    env = displayEnv if displayEnv is not None else createGym()
     observation = env.reset()
     
     rewardSoFar: float = 0.0
@@ -152,7 +155,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    env = gym.make('BipedalWalker-v2')
+    env = createGym()
 
     inputs = env.observation_space.shape[0]
     outputs = env.action_space.shape[0]
@@ -191,7 +194,7 @@ if __name__ == '__main__':
         output = testOrganism(hyperneat.createSubstrate(genome).createPhenotype())
         hyperneat.epoch(genome, output["fitness"], output["behavior"])
 
-    displayEnv = gym.make('BipedalWalker-v2')
+    displayEnv = createGym()
     displayEnv.render()
     pool = ThreadPool(4) 
 
