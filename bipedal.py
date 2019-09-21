@@ -1,27 +1,19 @@
-from typing import List, Set, Dict, Tuple, Optional, Any
+from typing import Dict, Any
 
 from neat.hyperneat import HyperNEAT
-from neat.genes import Genome
 from neat.phenotypes import Phenotype
 from neat.mapelites import MapElitesConfiguration, Feature
 
-from visualize import Visualize
-
-from multiprocessing.dummy import Pool as ThreadPool 
+from multiprocessing.dummy import Pool as ThreadPool
 
 from prettytable import PrettyTable
 import numpy as np
-import scipy as sp
 import math
 
 import os
 import sys
-import dill
 import _pickle as pickle
 import argparse
-
-
-from copy import deepcopy
 
 import gym
 

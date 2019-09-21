@@ -3,20 +3,14 @@ from neat.genes import MutationRates
 
 global innovations
 
-import random
-import time
-from matplotlib import pyplot
 from prettytable import PrettyTable
 
 import numpy as np
-import math
 
 import multiprocessing
-from multiprocessing import Pool, Queue, Value
-import multiprocessing.managers as managers
+from multiprocessing import Pool
 
 import cProfile
-import operator
 
 xor_inputs = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]]
 # xor_outputs = [0.0, 1.0, 1.0, 0.0]
