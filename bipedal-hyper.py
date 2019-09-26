@@ -106,7 +106,7 @@ if __name__ == '__main__':
     # fitnesses: List[float] = []
     start_fitness = [0.0]*pop_size
     phenotypes: List[Phenotype] = hyperneat.epoch(SpeciesUpdate(start_fitness))
-    print("Phenotypes: {}".format(phenotypes))
+    # print("Phenotypes: {}".format(phenotypes))
     # randomPop = hyperneat.neat.population.randomInitialization()
     # for i, genome in enumerate(randomPop):
     #     print("\rInitializing start population ("+ str(i) +"/"+ str(len(randomPop)) +")", end='')
@@ -127,14 +127,14 @@ if __name__ == '__main__':
 
 
         feedforward = FeedforwardCUDA(phenotypes)
-        print("Feedforward: {}".format(feedforward))
+        # print("Feedforward: {}".format(feedforward))
         envs = [gym.make(environment) for _ in phenotypes]
-        print("Envs: {}".format(envs))
+        # print("Envs: {}".format(envs))
         # observations = map(lambda e: e.reset(), envs)
         observations = []
         for e in envs:
             observations.append(e.reset())
-        print("Observation: {}".format(observations))
+        # print("Observation: {}".format(observations))
 
         actions = feedforward.update(observations)
         print(actions)
@@ -151,7 +151,11 @@ if __name__ == '__main__':
 
             states, rewards, dones = outputs.T
 
+            # feed_start = time.time()
             actions = feedforward.update(states)
+            print(actions)
+            # feed_end = time.time()
+            # print("Feedfoward Time:", feed_end - feed_start)
 
             envs_running = len([d for d in dones if d == False])
             done = envs_running == 0
@@ -169,7 +173,7 @@ if __name__ == '__main__':
         #     print("Phenotype: %d | Neurons: %d | Links: %d"%
         #         (phenotype.ID, len(phenotype.graph.nodes), len(phenotype.graph.edges))
         #         )
-        #     # Visualize().update(phenotype)
+            # Visualize().update(phenotype)
         #     output = testOrganism(phenotype, None)
         #     fitness = max(fitness, output["fitness"])
         #     fitnesses.append(fitness)
