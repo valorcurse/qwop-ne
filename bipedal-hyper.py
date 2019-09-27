@@ -43,37 +43,6 @@ def take_step(env_action):
 
     return np.array([state, reward, done])
 
-# @jit
-# def take_steps(envs, actions):
-#     # print(envs)
-#     observations = []
-#     for action, env in zip(actions, envs):
-#         observation = env.step(action)
-#         # env.render()
-#         # print(observation)
-#         observations.append(observation)
-#
-#     # print("Observations: {}".format(np.array(observations)))
-#     return np.array(observations).T
-
-
-# def testOrganisms(feedforward, envs):
-#     X = np.array([e.reset() for e in envs])
-#
-#     all_rewards = np.zeros(X.shape[0])
-#
-#     done = False
-#     while not done:
-#         actions = feedforward.update(X)
-#         X, rewards, dones, info = take_steps(envs, actions)
-#         # print(all_rewards.shape, rewards.shape)
-#         all_rewards = np.add(all_rewards, rewards)
-#         done = len([d for d in dones if d == False]) == 0
-#         # print(done, all_rewards)
-#
-#     return all_rewards
-
-
 if __name__ == '__main__':
 
     sys.setrecursionlimit(10000)
@@ -137,7 +106,7 @@ if __name__ == '__main__':
         # print("Observation: {}".format(observations))
 
         actions = feedforward.update(observations)
-        print(actions)
+        # print(actions)
 
         fitnesses = np.zeros(len(phenotypes), dtype=np.float64)
 
