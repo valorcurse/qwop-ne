@@ -2,23 +2,28 @@ import argparse
 import os
 import sys
 import threading
-from multiprocessing.dummy import Pool as ThreadPool
+# from multiprocessing.dummy import Pool as ThreadPool
+from multiprocessing import Pool
 from typing import List, Dict, Any
 
 import gym
+from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
+from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+
 import numpy as np
 from prettytable import PrettyTable
 
 from numba import vectorize, jit
 
 import neat.hyperneat as hn
+from neat.neatTypes import NeuronType
 from neat.phenotypes import Phenotype, FeedforwardCUDA
 from neat.speciatedPopulation import SpeciesConfiguration, SpeciesUpdate
-from neat.neatTypes import NeuronType
 
 import time
 
-environment = "BipedalWalker-v2"
+env_name = "BipedalWalker-v2"
+nproc = 4
 
 dimensions: int = 8
 k: int = 15
@@ -32,7 +37,7 @@ farthestDistance: float = np.sqrt(np.power((space_range*2), 2)*dimensions)
 # p_threshold: float = farthestDistance*0.03
 p_threshold: float = 5.0
 
-_ALE_LOCK = threading.Lock()
+# _ALE_LOCK = threading.Lock()
 
 def take_step(env_action):
     env, action = env_action
@@ -42,6 +47,13 @@ def take_step(env_action):
         # env.render()
 
     return np.array([state, reward, done])
+
+def make_env(env_id, seed):
+    def _f():
+        env = gym.make(env_id)
+        env.seed(seed)
+        return env
+    return _f
 
 if __name__ == '__main__':
 
@@ -58,7 +70,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    env = gym.make(environment)
+    env = gym.make(env_name)
 
     # inputs = env.observation_space.sample().size
     # # outputs = env.action_space[0]
@@ -84,7 +96,7 @@ if __name__ == '__main__':
 
     # displayEnv = gym.make(environment)
     # displayEnv.render()
-    pool = ThreadPool(4)
+    pool = Pool(4)
 
     highestFitness: float = 0.0
     highestDistance: float = 0.0
@@ -96,41 +108,45 @@ if __name__ == '__main__':
 
 
         feedforward = FeedforwardCUDA(phenotypes)
-        # print("Feedforward: {}".format(feedforward))
-        envs = [gym.make(environment) for _ in phenotypes]
-        # print("Envs: {}".format(envs))
-        # observations = map(lambda e: e.reset(), envs)
-        observations = []
-        for e in envs:
-            observations.append(e.reset())
-        # print("Observation: {}".format(observations))
 
-        actions = feedforward.update(observations)
-        # print(actions)
+        envs = [make_env(env_name, seed) for seed in range(len(phenotypes))]
+        envs = SubprocVecEnv(envs)
+        # envs = DummyVecEnv(envs)
+
+        observations = envs.reset()
+        # for e in envs:
+        #     observations.append(e.reset())
+
+        # print(observations.shape)
+
+        obs_32 = np.float32(observations)
+        actions = feedforward.update(obs_32)
 
         fitnesses = np.zeros(len(phenotypes), dtype=np.float64)
 
         done = False
 
+        done_tracker = np.array([False for _ in phenotypes])
+
         start = time.time()
         while not done:
-            # Parallel
-            parallel_envs = list(zip(envs, actions))
-            outputs = np.array(pool.map(take_step, parallel_envs))
+            # round_start = time.time()
 
-            states, rewards, dones = outputs.T
-
-            # feed_start = time.time()
+            states, rewards, dones, info = envs.step(actions)
             actions = feedforward.update(states)
-            print(actions)
-            # feed_end = time.time()
-            # print("Feedfoward Time:", feed_end - feed_start)
 
-            envs_running = len([d for d in dones if d == False])
-            done = envs_running == 0
 
             rewards = rewards.astype(np.float64)
             fitnesses[dones == False] += rewards[dones == False]
+
+
+            envs_done = dones == True
+            done_tracker[envs_done] = dones[envs_done]
+            envs_running = len([d for d in done_tracker if d == False])
+            done = envs_running == 0
+
+            # round_end = time.time()
+            # print("Round time: {} | Envs running: {}/{}".format(round_end - round_start, envs_running, len(phenotypes)))
 
         end = time.time()
         print("Time:", end - start)
@@ -138,28 +154,11 @@ if __name__ == '__main__':
         print("Fitnesses:", fitnesses)
         max_fitness = max(fitnesses)
 
-        # for phenotype in phenotypes:
-        #     print("Phenotype: %d | Neurons: %d | Links: %d"%
-        #         (phenotype.ID, len(phenotype.graph.nodes), len(phenotype.graph.edges))
-        #         )
-            # Visualize().update(phenotype)
-        #     output = testOrganism(phenotype, None)
-        #     fitness = max(fitness, output["fitness"])
-        #     fitnesses.append(fitness)
-
         if max_fitness > highestFitness:
             print("New highest fitness: %f"%(max_fitness))
-            # done = False
-            # states = env.reset()
+            highestFitness = max_fitness
 
-            # while not done:
-            #     actions = feedforward.update(states)
-            #     states, rewards, dones = take_step(list(zip(env, actions)))
-            #     env.render()
-            # Visualize().update(cppn.createPhenotype())
-            # Visualize().update(phenotype)
-            # testOrganism(phenotype, displayEnv)
-            highestFitness = fitness
+        print("Highest fitness: {}".format(max_fitness))
 
         table = PrettyTable(["ID", "age", "members", "max fitness", "avg. distance", "stag", "neurons", "links", "avg.weight", "avg. compat.", "to spawn"])
         for s in hyperneat.neat.population.species:
