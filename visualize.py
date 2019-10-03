@@ -33,27 +33,23 @@ from neat.utils import Singleton
 
 class Visualize(metaclass=Singleton):
 
-	def update(self, neuralNetwork: Phenotype):
-		# G = nx.Graph()
-		G = nx.DiGraph()
+	def update(self, phenotype: Phenotype):
+		G = phenotype.graph
+		# print(G.nodes())
 		fig, ax = plt.subplots()
-
-		for neuron in neuralNetwork.neurons:
-			G.add_node(neuron.ID, pos=(neuron.x, neuron.y))
-
-		for edge in [e for n in neuralNetwork.neurons for e in n.linksIn]:
-			G.add_edge(edge.fromNeuron.ID, edge.toNeuron.ID, edge_color=edge.weight)
-		
-		pos = nx.get_node_attributes(G,'pos')
+		pos = nx.get_node_attributes(G, 'pos')
+		# print(pos)
 		
 		nx.draw_networkx_nodes(G, pos, ax=ax)
 		nx.draw_networkx_edges(G, pos, ax=ax, edge_vmin=-1.0, edge_vmax=1.0)
 		ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
 
-		print(nx.adjacency_matrix(G).todense())
+		# print(nx.adjacency_matrix(G).todense())
 
 		plt.show()
 		# visualize(G)
 
+	def close(self):
+		plt.close()
 		
 

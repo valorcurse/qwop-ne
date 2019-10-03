@@ -1,19 +1,16 @@
+from typing import List, Dict, Any
+
 import argparse
 import os
 import sys
-import threading
-# from multiprocessing.dummy import Pool as ThreadPool
-from multiprocessing import Pool
-from typing import List, Dict, Any
+import psutil
 
 import gym
-from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-
 import numpy as np
-from prettytable import PrettyTable
+from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 
-from numba import vectorize, jit
+from visualize import Visualize
+from prettytable import PrettyTable
 
 import neat.hyperneat as hn
 from neat.neatTypes import NeuronType
@@ -30,7 +27,7 @@ k: int = 15
 max_frames: int = 1000
 maxMapDistance: float = 300.0
 
-space_range: int = 100
+space_range: int = 50
 # Farthest distance between two points in specified number of dimensions
 farthestDistance: float = np.sqrt(np.power((space_range*2), 2)*dimensions)
 # Sparseness threshold as percentage of farthest distance between 2 points
@@ -72,9 +69,6 @@ if __name__ == '__main__':
 
     env = gym.make(env_name)
 
-    # inputs = env.observation_space.sample().size
-    # # outputs = env.action_space[0]
-    # outputs = 18
     inputs = env.observation_space.shape[0]
     outputs = env.action_space.shape[0]
 
@@ -84,21 +78,10 @@ if __name__ == '__main__':
     pop_config = SpeciesConfiguration(pop_size, inputs, outputs)
     hyperneat = hn.HyperNEAT(pop_config)
 
-    # fitnesses: List[float] = []
     start_fitness = [0.0]*pop_size
     phenotypes: List[Phenotype] = hyperneat.epoch(SpeciesUpdate(start_fitness))
-    # print("Phenotypes: {}".format(phenotypes))
-    # randomPop = hyperneat.neat.population.randomInitialization()
-    # for i, genome in enumerate(randomPop):
-    #     print("\rInitializing start population ("+ str(i) +"/"+ str(len(randomPop)) +")", end='')
-    #     fitnesses.append(testOrganism(hyperneat.createSubstrate(genome).createPhenotype())["fitness"])
-    # phenotypes = hyperneat.epoch(SpeciesUpdate(fitnesses))
 
-    # displayEnv = gym.make(environment)
-    # displayEnv.render()
-    pool = Pool(4)
-
-    highestFitness: float = 0.0
+    highestFitness: float = -1000.0
     highestDistance: float = 0.0
 
     while True:
@@ -110,14 +93,12 @@ if __name__ == '__main__':
         feedforward = FeedforwardCUDA(phenotypes)
 
         envs = [make_env(env_name, seed) for seed in range(len(phenotypes))]
+
+        print("Creating envs...")
         envs = SubprocVecEnv(envs)
-        # envs = DummyVecEnv(envs)
+        print("Done.")
 
         observations = envs.reset()
-        # for e in envs:
-        #     observations.append(e.reset())
-
-        # print(observations.shape)
 
         obs_32 = np.float32(observations)
         actions = feedforward.update(obs_32)
@@ -125,16 +106,13 @@ if __name__ == '__main__':
         fitnesses = np.zeros(len(phenotypes), dtype=np.float64)
 
         done = False
-
         done_tracker = np.array([False for _ in phenotypes])
 
         start = time.time()
+        print("Running envs.")
         while not done:
-            # round_start = time.time()
-
             states, rewards, dones, info = envs.step(actions)
             actions = feedforward.update(states)
-
 
             rewards = rewards.astype(np.float64)
             fitnesses[dones == False] += rewards[dones == False]
@@ -145,20 +123,33 @@ if __name__ == '__main__':
             envs_running = len([d for d in done_tracker if d == False])
             done = envs_running == 0
 
-            # round_end = time.time()
-            # print("Round time: {} | Envs running: {}/{}".format(round_end - round_start, envs_running, len(phenotypes)))
+            print("\rEnvs running: {}/{}".format(envs_running, len(phenotypes)), end='')
+
+        envs.close()
 
         end = time.time()
         print("Time:", end - start)
 
         print("Fitnesses:", fitnesses)
-        max_fitness = max(fitnesses)
+        max_fitness = max(zip(fitnesses, phenotypes), key=lambda e: e[0])
 
-        if max_fitness > highestFitness:
-            print("New highest fitness: %f"%(max_fitness))
-            highestFitness = max_fitness
+        if max_fitness[0] > highestFitness:
+            print("New highest fitness: {}".format(max_fitness))
+            best_phenotype = max_fitness[1]
+            # Visualize().update(best_phenotype)
 
-        print("Highest fitness: {}".format(max_fitness))
+            feedforward_highest = FeedforwardCUDA([best_phenotype])
+            states = env.reset()
+            done = False
+            while not done:
+                actions = feedforward_highest.update(np.array([states]))
+                states, reward, done, info = env.step(actions[0])
+                env.render()
+
+            # Visualize().close()
+            highestFitness = max_fitness[0]
+
+        print("Highest fitness: {}".format(highestFitness))
 
         table = PrettyTable(["ID", "age", "members", "max fitness", "avg. distance", "stag", "neurons", "links", "avg.weight", "avg. compat.", "to spawn"])
         for s in hyperneat.neat.population.species:
