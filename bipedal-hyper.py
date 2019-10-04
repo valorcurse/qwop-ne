@@ -76,7 +76,8 @@ if __name__ == '__main__':
     print("Creating hyperneat object")
     pop_size = 100
     pop_config = SpeciesConfiguration(pop_size, inputs, outputs)
-    hyperneat = hn.HyperNEAT(pop_config)
+    # hyperneat = hn.HyperNEAT(pop_config)
+    hyperneat = hn.NEAT(pop_config)
 
     start_fitness = [0.0]*pop_size
     phenotypes: List[Phenotype] = hyperneat.epoch(SpeciesUpdate(start_fitness))
@@ -84,19 +85,22 @@ if __name__ == '__main__':
     highestFitness: float = -1000.0
     highestDistance: float = 0.0
 
+    envs = [make_env(env_name, seed) for seed in range(len(phenotypes))]
+
+    print("Creating envs...")
+    envs = SubprocVecEnv(envs)
+    print("Done.")
+
     while True:
 
-        fitness = 0.0
-        distance = 0.0
+        diff = len(phenotypes) - len(envs.remotes)
+        print("Envs diff: {}".format(diff))
+        if diff > 0:
+            envs.add_envs(diff)
 
+        envs.reset()
 
         feedforward = FeedforwardCUDA(phenotypes)
-
-        envs = [make_env(env_name, seed) for seed in range(len(phenotypes))]
-
-        print("Creating envs...")
-        envs = SubprocVecEnv(envs)
-        print("Done.")
 
         observations = envs.reset()
 
@@ -106,26 +110,43 @@ if __name__ == '__main__':
         fitnesses = np.zeros(len(phenotypes), dtype=np.float64)
 
         done = False
-        done_tracker = np.array([False for _ in phenotypes])
+        done_tracker = np.array([False for _ in range(len(envs.remotes))])
+
+        if diff < 0:
+            done_tracker[diff:] = True
+
+        distances = np.zeros(len(envs.remotes))
+        last_distances = []
+        stagnations = np.zeros(len(envs.remotes))
 
         start = time.time()
         print("Running envs.")
         while not done:
+            actions = np.pad(actions, (0, abs(diff)), 'constant')
             states, rewards, dones, info = envs.step(actions)
             actions = feedforward.update(states)
 
-            rewards = rewards.astype(np.float64)
-            fitnesses[dones == False] += rewards[dones == False]
-
+            fitnesses[done_tracker == False] += rewards[done_tracker == False]
 
             envs_done = dones == True
             done_tracker[envs_done] = dones[envs_done]
             envs_running = len([d for d in done_tracker if d == False])
             done = envs_running == 0
 
-            print("\rEnvs running: {}/{}".format(envs_running, len(phenotypes)), end='')
+            distances += states.T[2]
 
-        envs.close()
+            stagnations += distances == last_distances
+
+            done_tracker[stagnations >= 100] = True
+
+            last_distances = distances
+
+            print(" "*100, end='\r', flush=True)
+            print("Envs running: {}/{}".format(envs_running, len(phenotypes)), end='\r', flush=True)
+
+
+        print("")
+        # envs.close()
 
         end = time.time()
         print("Time:", end - start)
@@ -152,7 +173,7 @@ if __name__ == '__main__':
         print("Highest fitness: {}".format(highestFitness))
 
         table = PrettyTable(["ID", "age", "members", "max fitness", "avg. distance", "stag", "neurons", "links", "avg.weight", "avg. compat.", "to spawn"])
-        for s in hyperneat.neat.population.species:
+        for s in hyperneat.population.species:
             table.add_row([
                 s.ID,                                                       # Species ID
                 s.age,                                                      # Age
