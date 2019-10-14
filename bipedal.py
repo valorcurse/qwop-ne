@@ -2,7 +2,7 @@ from typing import Dict, Any
 
 from neat.hyperneat import HyperNEAT
 from neat.phenotypes import Phenotype
-from neat.mapelites import MapElitesConfiguration, Feature
+from neat.mapElites import MapElitesConfiguration, Feature
 
 from multiprocessing.dummy import Pool as ThreadPool
 
