@@ -20,6 +20,9 @@ from neat.mapElites import MapElitesConfiguration, MapElitesUpdate
 
 import time
 
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 env_name = "BipedalWalker-v2"
 nproc = 4
 
@@ -54,9 +57,18 @@ def make_env(env_id, seed):
     return _f
 
 if __name__ == '__main__':
+
     import keras
     from keras.layers import Input, Dense
     from keras.models import Model
+    from keras.backend.tensorflow_backend import set_session
+    import tensorflow as tf
+
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True  # dynamically grow the memory used on the GPU
+    config.log_device_placement = True  # to log device placement (on which device the operation ran)
+    sess = tf.Session(config=config)
+    set_session(sess)  # set this TensorFlow session as the default session for Keras
 
     sys.setrecursionlimit(10000)
 
@@ -109,8 +121,8 @@ if __name__ == '__main__':
     pop_size = 100
     # pop_config = SpeciesConfiguration(pop_size, inputs, outputs)
     pop_config = MapElitesConfiguration(64, pop_size, encoding_dim, inputs, outputs)
-    hyperneat = hn.HyperNEAT(pop_config)
-    # hyperneat = hn.NEAT(pop_config)
+    # hyperneat = hn.HyperNEAT(pop_config)
+    hyperneat = hn.NEAT(pop_config)
 
     start_fitness = [0.0]*pop_size
     start_features = np.zeros((pop_size, encoding_dim))
@@ -127,10 +139,13 @@ if __name__ == '__main__':
 
     loss = 1000.0
     train_ae = True
+
+    epoch_num = 0
     while True:
+        epoch_num += 1
+        print("########## Epoch {} ##########".format(epoch_num))
 
         diff = len(phenotypes) - len(envs.remotes)
-        print("Envs diff: {}".format(diff))
         if diff > 0:
             envs.add_envs(diff)
 
@@ -159,7 +174,6 @@ if __name__ == '__main__':
         all_states = []
 
         start = time.time()
-        print("Running envs.")
         max_steps = 50
         steps = max_steps
         while not done:
@@ -172,6 +186,10 @@ if __name__ == '__main__':
             envs_done = dones == True
             done_tracker[envs_done] = dones[envs_done]
             envs_running = len([d for d in done_tracker if d == False])
+
+            # print(" " * 100, end='\r', flush=True)
+            print("Envs running: {}/{}".format(envs_running, len(phenotypes)), end='\r')
+
             done = envs_running == 0
 
             distances += states.T[2]
@@ -184,13 +202,11 @@ if __name__ == '__main__':
 
             if steps == max_steps:
                 steps = 0
-                # all_states.append(states[:, :4])
                 all_states.append(states[:, [4, 6, 9, 11]])
 
             steps += 1
 
-            print(" "*100, end='\r', flush=True)
-            print("Envs running: {}/{}".format(envs_running, len(phenotypes)), end='\r', flush=True)
+
 
         behavior_matrix_size = 400
         all_states = np.array(all_states)
@@ -223,6 +239,7 @@ if __name__ == '__main__':
                 train_ae = False
 
             loss = lastest_loss
+            print("Training autoencoder. Loss: {}".format(lastest_loss))
 
             continue
 
@@ -232,7 +249,7 @@ if __name__ == '__main__':
         end = time.time()
         print("Time:", end - start)
 
-        print("Fitnesses:", fitnesses)
+        print("Highest fitness this epoch:", max(fitnesses))
         max_fitness = max(zip(fitnesses, phenotypes), key=lambda e: e[0])
 
         if max_fitness[0] > highestFitness:
@@ -251,7 +268,7 @@ if __name__ == '__main__':
             # Visualize().close()
             highestFitness = max_fitness[0]
 
-        print("Highest fitness: {}".format(highestFitness))
+        print("Highest fitness all-time: {}".format(highestFitness))
 
         # table = PrettyTable(["ID", "age", "members", "max fitness", "avg. distance", "stag", "neurons", "links", "avg.weight", "avg. compat.", "to spawn"])
         # for s in hyperneat.neat.population.species:
