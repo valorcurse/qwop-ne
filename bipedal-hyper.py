@@ -56,6 +56,77 @@ def make_env(env_id, seed):
         return env
     return _f
 
+def test_organism(phenotypes, envs):
+    feedforward = FeedforwardCUDA(phenotypes)
+
+    observations = envs.reset()
+
+    obs_32 = np.float32(observations)
+    actions = feedforward.update(obs_32)
+
+    fitnesses = np.zeros(len(phenotypes), dtype=np.float64)
+
+    done = False
+    done_tracker = np.array([False for _ in range(len(envs.remotes))])
+
+    if diff < 0:
+        done_tracker[diff:] = True
+
+    distances = np.zeros(len(envs.remotes))
+    last_distances = []
+    stagnations = np.zeros(len(envs.remotes))
+
+    all_states = []
+
+    max_steps = 50
+    steps = max_steps
+    while not done:
+        actions = np.pad(actions, (0, abs(diff)), 'constant')
+        states, rewards, dones, info = envs.step(actions)
+        actions = feedforward.update(states)
+
+        fitnesses[done_tracker == False] += np.around(rewards[done_tracker == False], decimals=2)
+
+        envs_done = dones == True
+        done_tracker[envs_done] = dones[envs_done]
+        envs_running = len([d for d in done_tracker if d == False])
+
+        # print(" " * 100, end='\r', flush=True)
+        print("Envs running: {}/{}".format(envs_running, len(phenotypes)), end='\r')
+
+        done = envs_running == 0
+
+        distances += states.T[2]
+
+        stagnations += distances == last_distances
+
+        done_tracker[stagnations >= 100] = True
+
+        last_distances = distances
+
+        if steps == max_steps:
+            steps = 0
+            all_states.append(states[:, [4, 6, 9, 11]])
+
+        steps += 1
+
+    return (fitnesses, all_states)
+
+def pad_matrix(all_states, matrix_width):
+    padded = []
+    for i in range(all_states.shape[1]):
+        row = all_states[:, i].flatten()
+
+        row = np.pad(row, (0, abs(matrix_width - row.shape[0])), 'constant')
+        padded.append(row)
+
+    return np.array(padded)
+
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+
 if __name__ == '__main__':
 
     import keras
@@ -92,7 +163,7 @@ if __name__ == '__main__':
 
     ############################################## Auto encoder ##############################################
 
-    encoding_dim = 4
+    encoding_dim = 8
     # this is our input placeholder
     input_img = Input(shape=(400,))
     # "encoded" is the encoded representation of the input
@@ -118,9 +189,9 @@ if __name__ == '__main__':
     ############################################################################################################
 
     print("Creating hyperneat object")
-    pop_size = 100
+    pop_size = 10
     # pop_config = SpeciesConfiguration(pop_size, inputs, outputs)
-    pop_config = MapElitesConfiguration(64, pop_size, encoding_dim, inputs, outputs)
+    pop_config = MapElitesConfiguration(32, pop_size, encoding_dim, inputs, outputs)
     # hyperneat = hn.HyperNEAT(pop_config)
     hyperneat = hn.NEAT(pop_config)
 
@@ -138,87 +209,29 @@ if __name__ == '__main__':
     print("Done.")
 
     loss = 1000.0
-    train_ae = True
+    max_stagnation = 20
+    progress_stagnation = max_stagnation
+    train_ae = progress_stagnation == max_stagnation
 
     epoch_num = 0
     while True:
         epoch_num += 1
+        train_ae = progress_stagnation == max_stagnation
         print("########## Epoch {} ##########".format(epoch_num))
 
         diff = len(phenotypes) - len(envs.remotes)
         if diff > 0:
-            envs.add_envs(diff)
-
-        envs.reset()
-
-        feedforward = FeedforwardCUDA(phenotypes)
-
-        observations = envs.reset()
-
-        obs_32 = np.float32(observations)
-        actions = feedforward.update(obs_32)
-
-        fitnesses = np.zeros(len(phenotypes), dtype=np.float64)
-
-        done = False
-        done_tracker = np.array([False for _ in range(len(envs.remotes))])
-
-        if diff < 0:
-            done_tracker[diff:] = True
-
-        distances = np.zeros(len(envs.remotes))
-        last_distances = []
-        stagnations = np.zeros(len(envs.remotes))
-
-
-        all_states = []
+            new_envs = [make_env(env_name, seed) for seed in range(diff)]
+            envs.add_envs(new_envs)
 
         start = time.time()
-        max_steps = 50
-        steps = max_steps
-        while not done:
-            actions = np.pad(actions, (0, abs(diff)), 'constant')
-            states, rewards, dones, info = envs.step(actions)
-            actions = feedforward.update(states)
-
-            fitnesses[done_tracker == False] += rewards[done_tracker == False]
-
-            envs_done = dones == True
-            done_tracker[envs_done] = dones[envs_done]
-            envs_running = len([d for d in done_tracker if d == False])
-
-            # print(" " * 100, end='\r', flush=True)
-            print("Envs running: {}/{}".format(envs_running, len(phenotypes)), end='\r')
-
-            done = envs_running == 0
-
-            distances += states.T[2]
-
-            stagnations += distances == last_distances
-
-            done_tracker[stagnations >= 100] = True
-
-            last_distances = distances
-
-            if steps == max_steps:
-                steps = 0
-                all_states.append(states[:, [4, 6, 9, 11]])
-
-            steps += 1
-
-
+        # Test the phenotypes in the envs
+        fitnesses, all_states = test_organism(phenotypes, envs)
 
         behavior_matrix_size = 400
         all_states = np.array(all_states)
-        padded = []
-        for i in range(all_states.shape[1]):
-            row = all_states[:, i].flatten()
-            diff = behavior_matrix_size - len(row)
 
-            row = np.pad(row, (0, abs(behavior_matrix_size - row.shape[0])), 'constant')
-            padded.append(row)
-
-        padded = np.array(padded)
+        padded = pad_matrix(all_states, behavior_matrix_size)
 
         ten_percent = int(padded.shape[0] * 0.1)
 
@@ -237,6 +250,24 @@ if __name__ == '__main__':
             lastest_loss = abs(hist.history['val_loss'][-1])
             if lastest_loss > loss:
                 train_ae = False
+                progress_stagnation = 0
+
+                if len(hyperneat.population.archive) > 0:
+                    old_archive = hyperneat.population.archive
+                    hyperneat.population.archive = {}
+                    hyperneat.population.archivedGenomes = []
+
+                    genome_chunks = chunks(hyperneat.population.archivedGenomes, pop_size)
+
+                    for chunk in genome_chunks:
+                        states, fitnesses = test_organism(chunk, envs[:len(chunk)])
+                        pred = encoder.predict(states)
+                        hyperneat.epoch(MapElitesUpdate(fitnesses, pred))
+
+                    # archived_features = np.array([c["features"] for c in old_archive.values()])
+                    # archived_fitness = np.array([c["fitness"] for c in old_archive.values()])
+                    # pred = encoder.predict(archived_features)
+                    # hyperneat.epoch(MapElitesUpdate(fitnesses, pred))
 
             loss = lastest_loss
             print("Training autoencoder. Loss: {}".format(lastest_loss))
@@ -267,8 +298,27 @@ if __name__ == '__main__':
 
             # Visualize().close()
             highestFitness = max_fitness[0]
+        else:
+            progress_stagnation += 1
 
         print("Highest fitness all-time: {}".format(highestFitness))
+        print("Progress stagnation: {}".format(progress_stagnation))
+
+        total = pow(hyperneat.population.configuration.mapResolution,
+                    hyperneat.population.configuration.features)
+        archiveFilled = len(hyperneat.population.archivedGenomes) / total
+        print("Genomes in archive: {}".format(len(hyperneat.population.archive)))
+        table = PrettyTable(
+            ["Epoch", "fitness", "max fitness", "neurons", "links", "archive"])
+        table.add_row([
+            epoch_num,
+            "{:1.4f}".format(max_fitness[0]),
+            "{:1.4f}".format(highestFitness),
+            sum([len(g.neurons) for g in hyperneat.population.genomes])/len(hyperneat.population.genomes),
+            sum([len(g.links) for g in hyperneat.population.genomes])/len(hyperneat.population.genomes),
+            # "{:1.4f}".format(np.mean([l.weight for l in cppn.links])),
+            "{:1.8f}".format(archiveFilled)])
+        print(table)
 
         # table = PrettyTable(["ID", "age", "members", "max fitness", "avg. distance", "stag", "neurons", "links", "avg.weight", "avg. compat.", "to spawn"])
         # for s in hyperneat.neat.population.species:
