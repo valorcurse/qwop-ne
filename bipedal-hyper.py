@@ -17,8 +17,8 @@ from prettytable import PrettyTable
 import neat.hyperneat as hn
 from neat.neatTypes import NeuronType
 from neat.phenotypes import Phenotype, FeedforwardCUDA
-# from neat.speciatedPopulation import SpeciesConfiguration, SpeciesUpdate
 from neat.mapElites import MapElitesConfiguration, MapElitesUpdate
+from neat.speciatedPopulation import SpeciesConfiguration, SpeciesUpdate
 
 import time
 
@@ -30,7 +30,8 @@ env_name = "BipedalWalker-v2"
 nproc = 4
 
 envs_size = 50
-pop_size = 100
+pop_size = 200
+max_stagnation = 25
 encoding_dim = 8
 behavior_dimensions = 7
 behavior_steps = 60
@@ -54,7 +55,7 @@ def make_env(env_id, seed):
         return env
     return _f
 
-def test_organism(phenotypes, envs):
+def test_organism(phenotypes, envs, render=False):
     feedforward = FeedforwardCUDA(phenotypes)
 
     observations = envs.reset()
@@ -72,7 +73,7 @@ def test_organism(phenotypes, envs):
         done_tracker[diff:] = True
 
     distances = np.zeros(len(envs.remotes))
-    last_distances = []
+    last_distances = np.zeros(len(envs.remotes))
     stagnations = np.zeros(len(envs.remotes))
 
     all_states = []
@@ -83,6 +84,11 @@ def test_organism(phenotypes, envs):
     while not done:
         actions = np.pad(actions, (0, abs(diff)), 'constant')
         states, rewards, dones, info = envs.step(actions)
+
+        # if render:
+        #     envs.remotes[0].send(('render', None))
+        #     envs.remotes[0].recv()
+
         actions = feedforward.update(states)
 
         fitnesses[done_tracker == False] += np.around(rewards[done_tracker == False], decimals=2)
@@ -92,15 +98,13 @@ def test_organism(phenotypes, envs):
         done_tracker[envs_done] = dones[envs_done]
         envs_running = len([d for d in done_tracker if d == False])
 
-        # print(" " * 100, end='\r', flush=True)
-        # print("Envs running: {}/{}".format(envs_running, len(phenotypes)), end='\r')
+        # print("\r"+" "* 100, end='', flush=True)
+        # print("\rEnvs running: {}/{}".format(envs_running, len(phenotypes)), end='')
 
-        # print(done_tracker)
-        # print(fitnesses)
 
         done = envs_running == 0
 
-        distances += states.T[2]
+        distances += np.around(states.T[2], decimals=2)
 
         stagnations += distances == last_distances
 
@@ -134,14 +138,31 @@ def chunk_testing(phenotypes):
     return (np.array(all_states), np.array(fitnesses))
 
 def run_env_once(phenotype):
-    env = gym.make(env_name)
+    single_envs = SubprocVecEnv([make_env(env_name, envs_size)])
+    test_organism([phenotype], single_envs, render=True)
+
     # Visualize().update(phenotype)
     feedforward_highest = FeedforwardCUDA([phenotype])
     states = env.reset()
     done = False
+    distance = 0.0
+    last_distance = 0.0
+    distance_stagnation = 0
     while not done:
         actions = feedforward_highest.update(np.array([states]))
         states, reward, done, info = env.step(actions[0])
+        distance += np.around(states[2], decimals=2)
+
+        if distance <= last_distance:
+            distance_stagnation += 1
+        else:
+            distance_stagnation = 0
+
+        if distance_stagnation >= 100:
+            done = True
+
+        last_distance = distance
+
         env.render()
     env.close()
     # Visualize().close()
@@ -204,17 +225,6 @@ if __name__ == '__main__':
 
     sys.setrecursionlimit(10000)
 
-    # Save generations to file
-    saveFolder = "bipedal"
-    saveDirectory = "saves/" + saveFolder
-    if not os.path.exists(saveDirectory):
-        os.makedirs(saveDirectory)
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--load")
-
-    args = parser.parse_args()
-
     env = gym.make(env_name)
 
     inputs = env.observation_space.shape[0]
@@ -254,11 +264,12 @@ if __name__ == '__main__':
     # hyperneat = hn.HyperNEAT(pop_config)
     hyperneat = hn.NEAT(pop_config)
 
-    start_fitness = [0.0]*pop_size
+    start_fitness = np.zeros(pop_size)
     start_features = np.zeros((pop_size, encoding_dim))
     phenotypes: List[Phenotype] = hyperneat.epoch(MapElitesUpdate(start_fitness, start_features))
+    # phenotypes: List[Phenotype] = hyperneat.epoch(SpeciesUpdate(start_fitness))
 
-    highestFitness: float = -1000.0
+    highest_fitness: float = -1000.0
     highestDistance: float = 0.0
 
     envs = [make_env(env_name, seed) for seed in range(envs_size)]
@@ -268,31 +279,44 @@ if __name__ == '__main__':
     print("Done.")
 
     loss = 1000.0
-    max_stagnation = 50
     progress_stagnation = 0
-    train_ae = progress_stagnation == max_stagnation
+    train_ae = progress_stagnation >= max_stagnation
 
     refine_ae(autoencoder, phenotypes)
+
 
     epoch_num = 0
     while True:
         epoch_num += 1
+        progress_stagnation += 1
         train_ae = progress_stagnation == max_stagnation
 
         if train_ae:
             ae_phenotypes = []
-            if len(hyperneat.population.archive) > 0:
+            sorted_genomes_and_fitness = []
+            if len(hyperneat.population) > 0:
 
-                sorted_archive = sorted(hyperneat.population.archive.values(), key=lambda a: a['fitness'])
-                ae_phenotypes = [g['genome'].createPhenotype() for g in sorted_archive]
+                sorted_genomes_and_fitness = sorted(hyperneat.population.population_and_fitnesses(), key=lambda a: a['fitness'])
+                ae_phenotypes = [g['genome'].createPhenotype() for g in sorted_genomes_and_fitness]
             else:
+                sorted_genomes_and_fitness = hyperneat.population.population_and_fitnesses()
                 ae_phenotypes = phenotypes
 
             refine_ae(autoencoder, ae_phenotypes)
-            ten_percent = max(1, int(len(ae_phenotypes) * 0.1))
-            phenotypes = ae_phenotypes[:ten_percent]
+            top_percent = max(1, int(len(ae_phenotypes) * 0.25) + 1)
+            ae_phenotypes = ae_phenotypes[:top_percent]
+            # Re-evaluate all the genomes in the archives
+            ae_states, ae_fitnesses = chunk_testing(ae_phenotypes)
+            ae_pred = encoder.predict(ae_states)
+            ae_fitnesses = ae_fitnesses[:top_percent]
+
+            sorted_genomes = [g['genome'] for g in sorted_genomes_and_fitness]
 
             hyperneat.population.archive = {}
+            hyperneat.population.archivedGenomes = []
+            hyperneat.population.genomes = sorted_genomes[:top_percent]
+            phenotypes = hyperneat.epoch(MapElitesUpdate(ae_fitnesses, ae_pred))
+
             progress_stagnation = 0
 
 
@@ -314,20 +338,21 @@ if __name__ == '__main__':
         # p = mpc.Process(target=run_env_once, args=(max_fitness[1],))
         # p.start()
 
-        if max_fitness[0] > highestFitness:
-            print("New highest fitness: {}".format(max_fitness))
-            highestFitness = max_fitness[0]
+        if max_fitness[0] > highest_fitness:
+            highest_fitness = max_fitness[0] if max_fitness[0] > highest_fitness else highest_fitness
 
             best_phenotype = max_fitness[1]
             # Visualize().update(best_phenotype)
             run_env_once(best_phenotype)
             # Visualize().close()
 
-            progress_stagnation = 0
-        else:
-            progress_stagnation += 1
+            # progress_stagnation = 0
+        # else:
+        #     progress_stagnation += 1
 
-        print("Highest fitness all-time: {}".format(highestFitness))
+        phenotypes = hyperneat.epoch(MapElitesUpdate(fitnesses, pred))
+
+        print("Highest fitness all-time: {}".format(highest_fitness))
         print("Progress stagnation: {}".format(progress_stagnation))
 
         total = pow(hyperneat.population.configuration.mapResolution,
@@ -336,42 +361,22 @@ if __name__ == '__main__':
         print("Genomes in archive: {}".format(len(hyperneat.population.archive)))
 
         archive_size = max(1, len(hyperneat.population.archive))
-        avg_neurons = sum([len(g['genome'].neurons) for g in hyperneat.population.archive.values()]) / archive_size - (inputs+outputs)
-        avg_links = sum([len(g['genome'].links) for g in hyperneat.population.archive.values()]) / archive_size
-        avg_fitness = sum([g['fitness'] for g in hyperneat.population.archive.values()])/max(1, len(hyperneat.population.archive))
+        population = hyperneat.population.population()
+        avg_neurons = sum([len(g.neurons) for g in population]) / archive_size - (
+                    inputs + outputs)
+        avg_links = sum([len(g.links) for g in population]) / archive_size
+        avg_fitness = sum([g['fitness'] for g in hyperneat.population.population_and_fitnesses()]) / max(1, len(
+            hyperneat.population.archive))
 
         table = PrettyTable(["Epoch", "fitness", "max fitness", "neurons", "links", "avg. fitness", "archive"])
         table.add_row([
             epoch_num,
             "{:1.4f}".format(max_fitness[0]),
-            "{:1.4f}".format(highestFitness),
+            "{:1.4f}".format(highest_fitness),
             "{:1.4f}".format(avg_neurons),
             "{:1.4f}".format(avg_links),
             "{:1.4f}".format(avg_fitness),
             "{:1.8f}".format(archiveFilled)])
         print(table)
-
-        # table = PrettyTable(["ID", "age", "members", "max fitness", "avg. distance", "stag", "neurons", "links", "avg.weight", "avg. compat.", "to spawn"])
-        # for s in hyperneat.neat.population.species:
-        #     table.add_row([
-        #         s.ID,                                                       # Species ID
-        #         s.age,                                                      # Age
-        #         len(s.members),                                             # Nr. of members
-        #         int(max([m.fitness for m in s.members])),                   # Max fitness
-        #         # "{:1.4f}".format(s.adjustedFitness),                        # Adjusted fitness
-        #         "{:1.4f}".format(max([m.distance for m in s.members])),          # Average distance
-        #         # "{}".format(max([m.uniqueKeysPressed for m in s.members])), # Average unique keys
-        #         s.generationsWithoutImprovement,                            # Stagnation
-        #         int(np.mean([len([n for n in m.neurons if n.neuronType == NeuronType.HIDDEN]) for m in s.members])),     # Neurons
-        #         np.mean([len(m.links) for m in s.members]),                 # Links
-        #         "{:1.4f}".format(np.mean([l.weight for m in s.members for l in m.links])),    # Avg. weight
-        #         # "{:1.4f}".format(np.mean([n.bias for m in s.members for n in m.neurons])),    # Avg. bias
-        #         "{:1.4f}".format(np.mean([m.calculateCompatibilityDistance(s.leader) for m in s.members])),    # Avg. compatiblity
-        #         s.numToSpawn])                                              # Nr. of members to spawn
-        #
-        # print(table)
-
-        # phenotypes = hyperneat.epoch(SpeciesUpdate(fitnesses))
-        phenotypes = hyperneat.epoch(MapElitesUpdate(fitnesses, pred))
 
     env.close()
