@@ -169,12 +169,12 @@ if __name__ == '__main__':
         print("Epoch Time: {}".format(time.time() - start))
         max_fitness =  max([(g.fitness, g) for g in neat.population.genomes], key=lambda e: e[0])
 
-        if max_fitness[0] > highest_fitness:
+        if max_fitness[0] >= highest_fitness:
             run_env_once(max_fitness[1].createPhenotype(), env)
             highest_fitness = max_fitness[0]
 
         print("########## Epoch {} ##########".format(neat.epochs))
-        # print("Highest fitness all-time: {}".format(highest_fitness))
+        print("Highest fitness all-time: {}".format(highest_fitness))
         # print("Progress stagnation: {}".format(progress_stagnation))
 
         table = PrettyTable(["ID", "age", "members", "max fitness", "avg. distance", "stag", "neurons", "links", "avg.weight", "avg. compat.", "to spawn"])
