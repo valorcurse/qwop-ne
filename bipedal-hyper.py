@@ -1,24 +1,16 @@
-from typing import List, Dict, Any
+from typing import List
 
-import argparse
-import os
 import sys
-import psutil
-
-import multiprocessing as mp
 
 import gym
 import numpy as np
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 
-from visualize import Visualize
 from prettytable import PrettyTable
 
 import neat.hyperneat as hn
-from neat.neatTypes import NeuronType
 from neat.phenotypes import Phenotype, FeedforwardCUDA
 from neat.mapElites import MapElitesConfiguration, MapElitesUpdate
-from neat.speciatedPopulation import SpeciesConfiguration, SpeciesUpdate
 
 import time
 
@@ -211,7 +203,6 @@ def chunks(l, n):
 
 if __name__ == '__main__':
 
-    import keras
     from keras.layers import Input, Dense
     from keras.models import Model
     from keras.backend.tensorflow_backend import set_session

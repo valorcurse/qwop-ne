@@ -1,34 +1,41 @@
-from typing import List, Dict, Any, Tuple
+from typing import Tuple
 
 
 if __name__ == '__main__':
 
     import gym
     import numpy as np
+    import pyglet
     from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 
-    from visualize import Visualize
     from prettytable import PrettyTable
 
     # import neat.hyperneat as hn
     from neat.neat import NEAT, Evaluation
     from neat.neatTypes import NeuronType
-    from neat.phenotypes import Phenotype, FeedforwardCUDA
-    from neat.multiobjectivePopulation import MOConfiguration, MOUpdate
+    from neat.phenotypes import FeedforwardCUDA
+    from neat.multiobjectivePopulation import MOConfiguration
 
     import time
 
     env_name = "BipedalWalker-v2"
     nproc = 4
 
-    envs_size = 100
-    pop_size = 100
+    envs_size = 80
+    pop_size = 80
     max_stagnation = 25
     encoding_dim = 8
-    behavior_dimensions = 7
-    behavior_steps = 60
+    behavior_dimensions = 14
+    behavior_steps = 250
     behavior_matrix_size = behavior_dimensions * behavior_steps
 
+
+    class DrawText:
+        def __init__(self, label: pyglet.text.Label):
+            self.label = label
+
+        def render(self):
+            self.label.draw()
 
     def make_env(env_id, seed):
         def _f():
@@ -42,12 +49,24 @@ if __name__ == '__main__':
     def run_env_once(phenotype, env):
         feedforward_highest = FeedforwardCUDA([phenotype])
         states = env.reset()
+
+        # env.render()
+        # label = pyglet.text.Label("test", font_size=36,
+        #                           x=50, y=50, anchor_x='left', anchor_y='bottom',
+        #                           color=(255, 123, 255, 255))
+        # pyglabel = DrawText(label)
+        # env.viewer.add_geom(pyglabel)
+
         done = False
         distance = 0.0
         last_distance = 0.0
         distance_stagnation = 0
+
+
         while not done:
             actions = feedforward_highest.update(np.array([states]))
+
+            # print(actions)
             states, reward, done, info = env.step(actions[0])
             distance += np.around(states[2], decimals=2)
 
@@ -60,6 +79,10 @@ if __name__ == '__main__':
                 done = True
 
             last_distance = distance
+
+
+            # pyglabel.label.text = str(actions)
+            # label.draw()
 
             env.render()
 
@@ -103,9 +126,10 @@ if __name__ == '__main__':
             last_distances = np.zeros(len(self.envs.remotes))
             stagnations = np.zeros(len(self.envs.remotes))
 
+            # all_states = np.empty((1, 14))
             all_states = []
 
-            max_steps = 50
+            max_steps = 10
             steps = max_steps
             while not done:
                 actions = np.pad(actions, (0, abs(diff)), 'constant')
@@ -117,8 +141,8 @@ if __name__ == '__main__':
 
                 actions = feedforward.update(states)
 
-                fitnesses[done_tracker == False] += np.around(rewards[done_tracker == False], decimals=2)
-                # fitnesses[done_tracker == False] = np.around(rewards[done_tracker == False], decimals=2)
+                # fitnesses[done_tracker == False] += np.around(rewards[done_tracker == False], decimals=2)
+                fitnesses[done_tracker == False] = np.around(rewards[done_tracker == False], decimals=2)
 
                 envs_done = dones == True
                 done_tracker[envs_done] = dones[envs_done]
@@ -137,9 +161,15 @@ if __name__ == '__main__':
 
                 last_distances = distances
 
+                relevant_states = states[:, :14]
+                running_states = np.zeros(relevant_states.shape)
+                running_states[done_tracker == False] += relevant_states[done_tracker == False]
+
                 if steps == max_steps:
                     steps = 0
-                    all_states.append(states[:, [0, 4, 6, 8, 9, 11, 13]])
+                    all_states.append(running_states)
+                    # all_states = np.vstack((all_states, states[:, :14]))
+                    # print(all_states.shape)
 
                 steps += 1
 
@@ -169,11 +199,14 @@ if __name__ == '__main__':
         print("Epoch Time: {}".format(time.time() - start))
         max_fitness =  max([(g.fitness, g) for g in neat.population.genomes], key=lambda e: e[0])
 
+        # if max_fitness[0] >= highest_fitness:
+        #     run_env_once(max_fitness[1].createPhenotype(), env)
+        #     highest_fitness = max_fitness[0]
+
+        run_env_once(max_fitness[1].createPhenotype(), env)
         if max_fitness[0] >= highest_fitness:
-            run_env_once(max_fitness[1].createPhenotype(), env)
             highest_fitness = max_fitness[0]
 
-        print("########## Epoch {} ##########".format(neat.epochs))
         print("Highest fitness all-time: {}".format(highest_fitness))
         # print("Progress stagnation: {}".format(progress_stagnation))
 
@@ -206,5 +239,11 @@ if __name__ == '__main__':
         print(table)
 
         start = time.time()
+        print("########## Epoch {} ##########".format(neat.epochs))
 
     env.close()
+
+
+
+
+
