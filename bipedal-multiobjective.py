@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, List
 
 
 if __name__ == '__main__':
@@ -13,7 +13,7 @@ if __name__ == '__main__':
     # import neat.hyperneat as hn
     from neat.neat import NEAT, Evaluation
     from neat.neatTypes import NeuronType
-    from neat.phenotypes import FeedforwardCUDA
+    from neat.phenotypes import FeedforwardCUDA, Phenotype
     from neat.multiobjectivePopulation import MOConfiguration
 
     import time
@@ -25,9 +25,9 @@ if __name__ == '__main__':
     pop_size = 80
     max_stagnation = 25
     encoding_dim = 8
-    behavior_dimensions = 14
-    behavior_steps = 250
-    behavior_matrix_size = behavior_dimensions * behavior_steps
+    features_dimensions = 14
+    behavior_steps = 25
+    behavior_dimensions = features_dimensions * behavior_steps
 
 
     class DrawText:
@@ -49,13 +49,6 @@ if __name__ == '__main__':
     def run_env_once(phenotype, env):
         feedforward_highest = FeedforwardCUDA([phenotype])
         states = env.reset()
-
-        # env.render()
-        # label = pyglet.text.Label("test", font_size=36,
-        #                           x=50, y=50, anchor_x='left', anchor_y='bottom',
-        #                           color=(255, 123, 255, 255))
-        # pyglabel = DrawText(label)
-        # env.viewer.add_geom(pyglabel)
 
         done = False
         distance = 0.0
@@ -105,7 +98,8 @@ if __name__ == '__main__':
             self.num_of_envs = envs_size
             print("Done.")
 
-        def evaluate(self, phenotypes) -> Tuple[np.ndarray, np.ndarray]:
+        def evaluate(self, phenotypes: List[Phenotype]) -> Tuple[np.ndarray, np.ndarray]:
+
             feedforward = FeedforwardCUDA(phenotypes)
 
             observations = self.envs.reset()
@@ -126,7 +120,6 @@ if __name__ == '__main__':
             last_distances = np.zeros(len(self.envs.remotes))
             stagnations = np.zeros(len(self.envs.remotes))
 
-            # all_states = np.empty((1, 14))
             all_states = []
 
             max_steps = 10
@@ -135,21 +128,14 @@ if __name__ == '__main__':
                 actions = np.pad(actions, (0, abs(diff)), 'constant')
                 states, rewards, dones, info = self.envs.step(actions)
 
-                # if render:
-                #     envs.remotes[0].send(('render', None))
-                #     envs.remotes[0].recv()
 
                 actions = feedforward.update(states)
 
-                # fitnesses[done_tracker == False] += np.around(rewards[done_tracker == False], decimals=2)
                 fitnesses[done_tracker == False] = np.around(rewards[done_tracker == False], decimals=2)
 
                 envs_done = dones == True
                 done_tracker[envs_done] = dones[envs_done]
                 envs_running = len([d for d in done_tracker if d == False])
-
-                # print("\r"+" "* 100, end='', flush=True)
-                # print("\rEnvs running: {}/{}".format(envs_running, len(phenotypes)), end='')
 
                 done = envs_running == 0
 
@@ -161,15 +147,13 @@ if __name__ == '__main__':
 
                 last_distances = distances
 
-                relevant_states = states[:, :14]
+                relevant_states = states[:, :features_dimensions]
                 running_states = np.zeros(relevant_states.shape)
                 running_states[done_tracker == False] += relevant_states[done_tracker == False]
 
                 if steps == max_steps:
                     steps = 0
                     all_states.append(running_states)
-                    # all_states = np.vstack((all_states, states[:, :14]))
-                    # print(all_states.shape)
 
                 steps += 1
 
@@ -178,7 +162,7 @@ if __name__ == '__main__':
             for row_i in range(all_states.shape[1]):
                 flattened_states.append(all_states[:, row_i].flatten())
 
-            flattened_states = pad_matrix(np.array(flattened_states), behavior_matrix_size)
+            flattened_states = pad_matrix(np.array(flattened_states), behavior_dimensions)
 
             return (fitnesses[:len(phenotypes)], flattened_states[:len(phenotypes)])
 
@@ -189,7 +173,8 @@ if __name__ == '__main__':
     print("Inputs: {} | Outputs: {}".format(inputs, outputs))
 
     print("Creating neat object")
-    pop_config = MOConfiguration(pop_size, inputs, outputs)
+    obj_ranges = [(-100.0, 300.0), (-1.0, 1.0)]
+    pop_config = MOConfiguration(pop_size, inputs, outputs, behavior_dimensions, obj_ranges)
     neat = NEAT(TestOrganism(), pop_config)
 
     highest_fitness = -1000.0
@@ -208,7 +193,6 @@ if __name__ == '__main__':
             highest_fitness = max_fitness[0]
 
         print("Highest fitness all-time: {}".format(highest_fitness))
-        # print("Progress stagnation: {}".format(progress_stagnation))
 
         table = PrettyTable(["ID", "age", "members", "max fitness", "avg. distance", "stag", "neurons", "links", "avg.weight", "avg. compat.", "to spawn"])
         for s in neat.population.species:
