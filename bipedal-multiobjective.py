@@ -11,31 +11,31 @@ if __name__ == '__main__':
     from prettytable import PrettyTable
 
     # import neat.hyperneat as hn
+    import neat.visualize as dash_vis
     from neat.neat import NEAT, Evaluation
     from neat.neatTypes import NeuronType
+    from neat.visualize import Visualize
     from neat.phenotypes import FeedforwardCUDA, Phenotype
     from neat.multiobjectivePopulation import MOConfiguration
 
     import time
+    from multiprocessing import Queue
+    import random
 
     env_name = "BipedalWalker-v2"
     nproc = 4
 
-    envs_size = 80
-    pop_size = 80
+    envs_size = 90
+    pop_size = 270
     max_stagnation = 25
-    encoding_dim = 8
+    # encoding_dim = 8
     features_dimensions = 14
     behavior_steps = 25
     behavior_dimensions = features_dimensions * behavior_steps
 
-
-    class DrawText:
-        def __init__(self, label: pyglet.text.Label):
-            self.label = label
-
-        def render(self):
-            self.label.draw()
+    q = Queue()
+    vis = Visualize()
+    vis.start()
 
     def make_env(env_id, seed):
         def _f():
@@ -47,7 +47,7 @@ if __name__ == '__main__':
 
 
     def run_env_once(phenotype, env):
-        feedforward_highest = FeedforwardCUDA([phenotype])
+        feedforward_highest = FeedforwardCUDA()
         states = env.reset()
 
         done = False
@@ -55,9 +55,12 @@ if __name__ == '__main__':
         last_distance = 0.0
         distance_stagnation = 0
 
+        image = env.render(mode='rgb_array')
 
+        images = []
+        activations = []
         while not done:
-            actions = feedforward_highest.update(np.array([states]))
+            actions = feedforward_highest.update([phenotype], np.array([states]))
 
             # print(actions)
             states, reward, done, info = env.step(actions[0])
@@ -73,12 +76,13 @@ if __name__ == '__main__':
 
             last_distance = distance
 
-
-            # pyglabel.label.text = str(actions)
-            # label.draw()
-
+            # activations.append(feedforward_highest.mem[0])
+            # images.append(env.render(mode='rgb_array'))
             env.render()
 
+        # dash_vis.dash_queue.put([phenotype.graph, activations, images])
+        # norm_acts = (np.array(activations)+1.0)/2.0
+        # dash_vis.dash_queue.put([phenotype.graph, activations])
 
     def pad_matrix(all_states, matrix_width):
         padded = []
@@ -96,16 +100,17 @@ if __name__ == '__main__':
             print("Creating envs...")
             self.envs = SubprocVecEnv([make_env(env_name, seed) for seed in range(envs_size)])
             self.num_of_envs = envs_size
+            self.feedforward = FeedforwardCUDA()
             print("Done.")
 
         def evaluate(self, phenotypes: List[Phenotype]) -> Tuple[np.ndarray, np.ndarray]:
 
-            feedforward = FeedforwardCUDA(phenotypes)
+            # feedforward = FeedforwardCUDA(phenotypes)
 
             observations = self.envs.reset()
 
             obs_32 = np.float32(observations)
-            actions = feedforward.update(obs_32)
+            actions = self.feedforward.update(phenotypes, obs_32)
 
             fitnesses = np.zeros(len(self.envs.remotes), dtype=np.float64)
 
@@ -129,10 +134,10 @@ if __name__ == '__main__':
                 states, rewards, dones, info = self.envs.step(actions)
 
 
-                actions = feedforward.update(states)
+                actions = self.feedforward.update(phenotypes, states)
 
-                fitnesses[done_tracker == False] = np.around(rewards[done_tracker == False], decimals=2)
-
+                # fitnesses[done_tracker == False] = np.around(rewards[done_tracker == False], decimals=2)
+                fitnesses[done_tracker == False] += np.around(rewards[done_tracker == False], decimals=2)
                 envs_done = dones == True
                 done_tracker[envs_done] = dones[envs_done]
                 envs_running = len([d for d in done_tracker if d == False])
@@ -163,7 +168,6 @@ if __name__ == '__main__':
                 flattened_states.append(all_states[:, row_i].flatten())
 
             flattened_states = pad_matrix(np.array(flattened_states), behavior_dimensions)
-
             return (fitnesses[:len(phenotypes)], flattened_states[:len(phenotypes)])
 
     env = gym.make(env_name)
@@ -182,15 +186,22 @@ if __name__ == '__main__':
     start = time.time()
     for _ in neat.epoch():
         print("Epoch Time: {}".format(time.time() - start))
-        max_fitness =  max([(g.fitness, g) for g in neat.population.genomes], key=lambda e: e[0])
+        random_phenotype = random.choice(neat.phenotypes)
+        most_fit =  max([(g.fitness, g) for g in neat.population.genomes], key=lambda e: e[0])
+        # most_novel =  max([(g.novelty, g) for g in neat.population.genomes], key=lambda e: e[0])
+        # best_phenotype =  max(neat.phenotypes, key=lambda e: e.fitness)
 
         # if max_fitness[0] >= highest_fitness:
         #     run_env_once(max_fitness[1].createPhenotype(), env)
         #     highest_fitness = max_fitness[0]
 
-        run_env_once(max_fitness[1].createPhenotype(), env)
-        if max_fitness[0] >= highest_fitness:
-            highest_fitness = max_fitness[0]
+        # run_env_once(most_novel[1].createPhenotype(), env)
+        # run_env_once(most_fit[1].createPhenotype(), env)
+        # run_env_once(random_phenotype, env)
+
+        if most_fit[0] >= highest_fitness:
+            run_env_once(most_fit[1].createPhenotype(), env)
+            highest_fitness = most_fit[0]
 
         print("Highest fitness all-time: {}".format(highest_fitness))
 
@@ -210,9 +221,9 @@ if __name__ == '__main__':
                 # Stagnation
                 s.generationsWithoutImprovement,
                 # Neurons
-                "{:1.2f}".format(np.mean([len([n for n in m.neurons if n.neuronType == NeuronType.HIDDEN]) for m in s.members])),
+                "{:1.2f}".format(np.mean([len([n for n in p.graph.nodes.data() if n[1]['type'] == NeuronType.HIDDEN]) for p in neat.phenotypes])),
                 # Links
-                "{:1.2f}".format(np.mean([len(m.links) for m in s.members])),
+                "{:1.2f}".format(np.mean([len(p.graph.edges) for p in neat.phenotypes])),
                 # Avg. weight
                 "{:1.2f}".format(np.mean([l.weight for m in s.members for l in m.links])),
                 # Avg. compatiblity
